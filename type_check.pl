@@ -873,18 +873,20 @@ tc_body(Body, TcBody) :-
 % }}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-only_check_participating_clauses(_) :-
-	\+ type_checking, !, fail.
+%%	participating_clause(+Term) is semidet.
+%
+%	True if Term is a clause-term we want to type-check.
 
-only_check_participating_clauses(Clause) :-
-	only_check_participating_clauses(Clause,_).
+participating_clause(Clause) :-
+	type_checking,
+	participating_clause(Clause,_).
 
-only_check_participating_clauses((:- _),_) :- !, fail.
-only_check_participating_clauses((Head :- _),FA) :- !,
+participating_clause((:- _),_) :- !, fail.
+participating_clause((Head :- _),FA) :- !,
 	participating_predicate(Head),
 	FA = F / A,
 	functor(Head,F,A).
-only_check_participating_clauses(Head,FA) :-
+participating_clause(Head,FA) :-
 	participating_predicate(Head),
 	FA = F / A,
 	functor(Head,F,A).
@@ -893,6 +895,7 @@ participating_predicate(Head) :-
 	functor(Head,Name,Arity),
 	functor(Test,Name,Arity),
 	signature(Test,_,[],_).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 basic_normalize_clause(Alias,Type,Clause) :-
 	Clause = type_check:basic_normalize(Alias,Type).
@@ -995,7 +998,7 @@ type_term_expansion(end_of_file,Clauses) :-
 	type_check_file(Clauses).
 
 type_term_expansion(Clause, NClause) :-
-	only_check_participating_clauses(Clause),
+	participating_clause(Clause),
 	assert(clause_to_check(Clause)),
 	NClause = [].
 
