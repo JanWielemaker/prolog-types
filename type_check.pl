@@ -203,7 +203,9 @@
 	trusted_predicate/1,
 	basic_normalize/2.
 
-tc_version('$Id: type_check.pl,v 1.45 2009-12-11 13:47:29 toms Exp $').
+:- thread_local
+	clause_to_check/1.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Type checker options {{{
@@ -1007,20 +1009,14 @@ user:term_expansion(Goal, Expanded) :-
 	type_term_expansion(Goal, Expanded).
 
 % {{{
+final_message(tc_stats(0,0)) :- !.
 final_message(tc_stats(E,T)) :-
-	( T > 0, type_checking_verbose ->
-		prolog_load_context(module,Mod),
-		write('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'), nl,
-		format('% Type checking for module `~w\' done:\n%\tfound type errors in ~w out of ~w clauses.\n',[Mod,E,T]),
-		( E == 0 ->
-			write('%\tWell-typed code can\'t go wrong!'), nl
-		;
-			true
-		),
-		write('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'), nl
-	;
-		true
-	).
+	prolog_load_context(module, Module),
+	(   type_checking_verbose
+	->  Level = informational
+	;   Level = silent
+	),
+	print_message(Level, type_check(checked(Module, E, T))).
 
 init_stats(tc_stats(0,0)).
 
@@ -1059,6 +1055,12 @@ prolog:message(type_check(Term)) -->
 
 type_message(duplicate_signature(Signature)) -->
 	[ 'Duplicate signature: ~q'-[Signature] ].
+type_message(checked(Module, 0, Checked)) -->
+	[ 'module ~q: no type errors in ~D clauses'-[Module, Checked] ].
+type_message(checked(Module, Errors, Checked)) -->
+	[ 'module ~q: found ~D errors in ~D clauses'-
+	  [ Module, Errors, Checked ]
+	].
 
 
 
