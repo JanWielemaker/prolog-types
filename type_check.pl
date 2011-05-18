@@ -178,6 +178,7 @@
 :- use_module(library(terms), [variant/2]).
 :- use_module(functor_constraint).
 :- use_module(library(apply_macros)). % for maplist/*
+:- use_module(library(error)). % for maplist/*
 
 :- op(1150, fx, type).
 :- op(1130, xfx, ---> ).
@@ -208,21 +209,24 @@ tc_version('$Id: type_check.pl,v 1.45 2009-12-11 13:47:29 toms Exp $').
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Type checker options {{{
 
-:- nb_setval(type_check_runtime,off).
-:- nb_setval(type_check,on).
-:- nb_setval(type_check_verbose,on).
+:- create_prolog_flag(type_check_runtime, false, [type(boolean)]).
+:- create_prolog_flag(type_check,         true,  [type(boolean)]).
+:- create_prolog_flag(type_check_verbose, true,  [type(boolean)]).
 
 handle_options(List) :- maplist(handle_option,List).
 
-handle_option(verbose(Flag)) :- !, nb_setval(type_check_verbose,Flag).
-handle_option(runtime(Flag)) :- !, nb_setval(type_check_runtime,Flag).
-handle_option(check(Flag))   :- !, nb_setval(type_check,Flag).
-handle_option(Other)	     :- format('Unsupported type checker option `~w\'.\n',[Other]).
+handle_option(verbose(Flag)) :- !,
+	set_prolog_flag(type_check_verbose,Flag).
+handle_option(runtime(Flag)) :- !,
+	set_prolog_flag(type_check_runtime,Flag).
+handle_option(check(Flag))   :- !,
+	set_prolog_flag(type_check,Flag).
+handle_option(Other)	     :-
+	domain_error(type_check_option, Other).
 
-
-type_checking_runtime :- nb_getval(type_check_runtime,on).
-type_checking_verbose :- nb_getval(type_check_verbose,on).
-type_checking         :- nb_getval(type_check,on).
+type_checking_runtime :- current_prolog_flag(type_check_runtime, true).
+type_checking_verbose :- current_prolog_flag(type_check_verbose, true).
+type_checking         :- current_prolog_flag(type_check, true).
 
 % }}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
