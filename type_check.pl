@@ -923,9 +923,6 @@ lookup_eq([K - V | KVs],Key,Value) :-
         ;
                 lookup_eq(KVs,Key,Value)
         ).
-snd_of_pairs([],[]).
-snd_of_pairs([_-Y|XYs],[Y|Ys]) :-
-        snd_of_pairs(XYs,Ys).
 % }}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Goal expansion {{{
