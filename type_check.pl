@@ -949,7 +949,8 @@ snd_of_pairs([_-Y|XYs],[Y|Ys]) :-
 % }}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Goal expansion {{{
-user:goal_expansion(UnsafeCall :: Signature, SafeCall) :- !,
+
+type_goal_expansion(UnsafeCall :: Signature, SafeCall) :- !,
 	( type_checking_runtime ->
 		% Already at end_of_file when this code get executed.
 		% prolog_load_context(file,File),
@@ -965,11 +966,11 @@ user:goal_expansion(UnsafeCall :: Signature, SafeCall) :- !,
 		SafeCall = UnsafeCall
 	).
 
-user:goal_expansion(UnsafeCall :< _Signature, Call) :- !,
+type_goal_expansion(UnsafeCall :< _Signature, Call) :- !,
 	Call = UnsafeCall.
 
-user:goal_expansion(type_to_any(X,Y),(X = Y)).
-user:goal_expansion(any_to_type(X,Y,Type),Goal) :- !,
+type_goal_expansion(type_to_any(X,Y),(X = Y)).
+type_goal_expansion(any_to_type(X,Y,Type),Goal) :- !,
 	( type_checking_runtime ->
 		Goal = (type_check:type_check_term(X,Type,[],_), X=Y)
 	;
@@ -981,12 +982,12 @@ user:goal_expansion(any_to_type(X,Y,Type),Goal) :- !,
 %	goes last
 %	otherwise we end up type checking the type checker...
 
-user:term_expansion((:- type_check_options(Options)),[]) :-
+type_term_expansion((:- type_check_options(Options)),[]) :-
 	handle_options(Options).
-user:term_expansion((:- runtime_type_check(Flag)),[]) :-
+type_term_expansion((:- runtime_type_check(Flag)),[]) :-
 	%writeln(type_checking_runtime(Flag)),
 	handle_option(runtime(Flag)).
-user:term_expansion((:- type Name ---> Constructors),
+type_term_expansion((:- type Name ---> Constructors),
 		     Clauses
 		    ) :-
 	( \+ \+ ( numbervars(Name, 0, _), ground(Constructors) ) ->
@@ -995,31 +996,38 @@ user:term_expansion((:- type Name ---> Constructors),
 		format("ERROR: invalid TYPE definition~w\n\tType definitions must be range-restricted!\n", [(:- type Name ---> Constructors)]),
 		Clauses = []
 	).
-user:term_expansion((:- type Alias == Type),
+type_term_expansion((:- type Alias == Type),
 		    [ Clause
 		    ]) :-
 	basic_normalize_clause(Alias,Type,Clause).
-user:term_expansion((:- type _Name),[]).		% empty type
-user:term_expansion((:- pred Signature),
+type_term_expansion((:- type _Name),[]).		% empty type
+type_term_expansion((:- pred Signature),
 		    [ Clause
 		    ]) :-
 	signature_clause(Signature,Clause).
-user:term_expansion((:- trust_pred Signature),
+type_term_expansion((:- trust_pred Signature),
 		    [ SignatureClause
 		    , TrustedPredicateClause
 		    ]) :-
 	signature_clause(Signature,SignatureClause),
 	functor(Signature,P,N),
 	TrustedPredicateClause = type_check:trusted_predicate(P/N).
-user:term_expansion(end_of_file,Clauses) :-
+type_term_expansion(end_of_file,Clauses) :-
 	type_check_file(Clauses).
 
-user:term_expansion(Clause, NClause) :-
+type_term_expansion(Clause, NClause) :-
 	only_check_participating_clauses(Clause),
 	assert(clause_to_check(Clause)),
 	NClause = [].
 
 % }}}
+
+user:goal_expansion(Goal, Expanded) :-
+	\+ current_prolog_flag(xref, true),
+	type_goal_expansion(Goal, Expanded).
+user:term_expansion(Goal, Expanded) :-
+	\+ current_prolog_flag(xref, true),
+	type_term_expansion(Goal, Expanded).
 
 % {{{
 final_message(tc_stats(E,T)) :-
