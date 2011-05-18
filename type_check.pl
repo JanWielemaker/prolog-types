@@ -1,16 +1,16 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Hindley-Milner Type Checker for Prolog
 %
-% All authors agree to the licences of SWI-Prolog and YAP 
+% All authors agree to the licences of SWI-Prolog and YAP
 %
-% AUTHORS OF CODE: 
+% AUTHORS OF CODE:
 %	Tom Schrijvers
 %       Bart Demoen
 %	Markus Triska
 %	YOUR NAME HERE
 %
 % ACKNOWLEDGEMENTS:
-%	Ulrich Neumerkel for providing feedback	
+%	Ulrich Neumerkel for providing feedback
 %	Vitor Santos Costa
 %	Jose Santos
 %	YOUR NAME HERE
@@ -24,9 +24,9 @@
 %
 % Define polymorphic algebraic data types like:
 %
-%	:- type pair(A,B)    	---> A - B.
-%	:- type list(T) 	---> [] ; [T|list(T)].
-%	:- type boolean    	---> true ;  false.
+%	:- type pair(A,B)	---> A - B.
+%	:- type list(T)		---> [] ; [T|list(T)].
+%	:- type boolean		---> true ;  false.
 %
 % (NOTE: the above types are predefined, as well as integer and float.)
 %
@@ -63,11 +63,11 @@
 %
 %    A variant of the annotation is only used for static type checking, and does
 %    not result in runtime checks:
-%	
+%
 %	concat(LL,L) :- flatten(LL,L) :< flatten(list(list(integer)),list(integer)).
 %
-% 3) A second way is to provide a signature for untypable code with: 
-%	
+% 3) A second way is to provide a signature for untypable code with:
+%
 %	:- trust_pred sort(list(integer),list(integer)).
 %
 %    This signature is only into account when checking calls from
@@ -76,7 +76,7 @@
 % Coping with Untypable Code
 % --------------------------
 %
-% Untypable code, e.g. using Prolog built-ins, may be encapsulated 
+% Untypable code, e.g. using Prolog built-ins, may be encapsulated
 % in a trusted predicate. E.g.
 %
 %	:- trust_pred new_array(list(T),array(T)).
@@ -98,7 +98,7 @@
 %
 % where Options is a list containing zero or more of the following elements:
 %
-%	check(Flag) where Flag is on or off, 
+%	check(Flag) where Flag is on or off,
 %		to enable or disable the type checker
 %		enabled by default
 %
@@ -112,7 +112,7 @@
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% CURRENT LIMITATIONS 
+% CURRENT LIMITATIONS
 %
 %	* global namespace for types
 %	* runtime type checks are not exhaustive for (non-ground) polymorphic types
@@ -121,12 +121,12 @@
 %	* check uniqueness of defined types, e.g. list(T) not defined twice
 %	* check syntactic well-formedness of type definitions and declarations
 %	* add module awareness for predicates
-%	* add module awareness for types 
+%	* add module awareness for types
 %	* take care with variables used in :: (also used for values / other annotations)
 %	* improve error messages with tc_stats(Errors,Total)
 %		- source location information
-%	  	- what the inconsistency is
-%	* support for more built-ins 
+%		- what the inconsistency is
+%	* support for more built-ins
 %	* higher-order types for meta-predicates
 %	* exported vs. hidden types
 %	* abstract types (hidden definition)
@@ -141,7 +141,7 @@
 %	* added error message for less polymorphic signature
 %	* added error message for duplicate predicate signature
 %	* added :< annotation, which is a variant of  the :: annotation,
-%	        where the semantics is not to include runtime assertions, 
+%	        where the semantics is not to include runtime assertions,
 %               but to simply trust the programmer.
 %	* added type pred/0 for goals
 %	* added call/1 built-in
@@ -163,7 +163,7 @@
 %	* option to enable/disable runtime type checks
 %	* added empty type definitions
 %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 :- module(type_check,
 	  [ op(1150, fx, type)
@@ -205,7 +205,7 @@
 
 tc_version('$Id: type_check.pl,v 1.45 2009-12-11 13:47:29 toms Exp $').
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Type checker options {{{
 
 :- nb_setval(type_check_runtime,off).
@@ -225,7 +225,7 @@ type_checking_verbose :- nb_getval(type_check_verbose,on).
 type_checking         :- nb_getval(type_check,on).
 
 % }}}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
@@ -243,7 +243,7 @@ type_check_term_(Term,ExpectedType,EnvIn,EnvOut) :-
 			term_type_error(Term,ExpectedType,EnvType)
 		),
 		EnvIn = EnvOut
-	;	
+	;
 		EnvOut = [Term-ExpectedType|EnvIn]
 	).
 type_check_term_(Term,Type,EnvIn,EnvOut) :-
@@ -307,7 +307,7 @@ type_check_terms([Term|Terms],[Type|Types],Env1,Env3) :-
 term_type_error(Term,ExpectedType,EnvType) :-
 	throw(error(type_error(Term,ExpectedType,EnvType))).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 constructor_clauses((A;B),Type) --> !,
 	constructor_clauses(A,Type),
@@ -339,7 +339,7 @@ constructor_info_clause(Constructor,Type) -->
 	},
 	[ Clause
 	].
-				
+
 args_body([],[],true,Env,Env).
 args_body([Term|Terms],[Type|Types],(type_check:type_check_term(Term,Type,EnvIn,Env),Body),EnvIn,EnvOut) :-
 	args_body(Terms,Types,Body,Env,EnvOut).
@@ -356,9 +356,9 @@ signature_clause_(Signature,Clause) :-
 	functor(Signature,Name,Arity),
 	functor(Call,Name,Arity),
 	Call      =.. [_|Args],
-	Signature =.. [_|Types],	
+	Signature =.. [_|Types],
 	args_body(Args,Types,Body,EnvIn,EnvOut),
-	Clause = 
+	Clause =
 	( type_check:signature(Call,Types,EnvIn,EnvOut) :-
 		Body
 	).
@@ -374,7 +374,7 @@ check_signature(Signature) :-
 		true
 	).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type_check_file(NClauses) :-
 	findall(Clause,retract(clause_to_check(Clause)),Clauses),
 	( type_checking ->
@@ -386,7 +386,7 @@ type_check_file(NClauses) :-
 		),
 		final_message(Stats)
 	;
-		NClauses = Clauses	
+		NClauses = Clauses
 	).
 
 type_check_clauses(Clauses,Stats) :-
@@ -396,12 +396,12 @@ type_check_clauses(Clauses,Stats) :-
 type_check_clauses([],Stats,Stats).
 type_check_clauses([Clause|Clauses],Stats0,Stats) :-
 	catch(
-		( type_check_clause(Clause) , 
+		( type_check_clause(Clause) ,
 		  inc_ok_stats(Stats0,Stats1)
 		)
 	     ,  type_error
 	     ,  ( format('TYPE ERROR in clause: \n\n',[]),
-	  	  portray_clause(Clause),
+		  portray_clause(Clause),
 		  inc_error_stats(Stats0,Stats1)
 		)
 	     ),
@@ -416,20 +416,20 @@ type_check_clause((Head :- Body)) :- !,
 	;
 		type_check_clause_main(Head,Body)
 	).
-type_check_clause(Head) :- 
+type_check_clause(Head) :-
 	type_check_clause((Head :- true)).
 
 type_check_clause_main(Head,Body) :-
-	Env0 = [], 
-        /* check the head */ 
+	Env0 = [],
+        /* check the head */
         catch(
 		signature(Head,ArgTypes,Env0,Env1),
 		error(type_error(Term,Exp,Inf)),
 		( head_error(Term,Exp,Inf,Head,Body), fail )
 	),
 	/* check the body */
-	catch( 
-	  	 type_check_control(Body,top,Env1,_Env2),
+	catch(
+		 type_check_control(Body,top,Env1,_Env2),
 		error(type_error(Term,Exp,Inf),Context),
 		(control_error(Term,Exp,Inf,Head,Context),fail)
 	),
@@ -444,9 +444,9 @@ type_check_clause_main(Head,Body) :-
 	  InfSig =.. [Name|ArgTypes],
 	  DecSig =.. [Name|ProtoTypes],
 	  less_polymorphic_error((:- pred InfSig),
-	  			 (:- pred DecSig)), 
+				 (:- pred DecSig)),
 	  throw(type_error)
-	). 
+	).
 
 % context ::=
 %	  top
@@ -488,7 +488,7 @@ type_check_control(findall(Pattern,Goal,Result),Context,Env1,Env4) :- !,
 type_check_control(Goal,Context,Env1,Env2) :-
 	catch(
 		( type_check_goal(Goal,Env1,Env2,Warnings,[]) ->
-			maplist(control_warning(context(Goal,Context)),Warnings)	
+			maplist(control_warning(context(Goal,Context)),Warnings)
 		;
 			term_type_error(?,?,?)
 		),
@@ -505,7 +505,7 @@ numeric_type(Type) :-
 
 check_numeric_type(integer) :- !.
 check_numeric_type(float) :- !.
-check_numeric_type(Other) :- 
+check_numeric_type(Other) :-
 	term_type_error(some_arithmetic_expression,a_numeric_type,Other).
 
 % type_check_goal(+goal,+env,-env,-warnings,+warnings_tail) {{{
@@ -579,10 +579,10 @@ type_check_goal(functor(Term,Functor,I),Env1,Env3,W,W) :- !,
 		atomic(Functor),
 		( nonvar(I), nonvar(Type) ->
 			functor(Dummy,Functor,I),
-			constructor(Dummy,Type,[],_Env)	
+			constructor(Dummy,Type,[],_Env)
 		;
 			true
-		)	
+		)
 	;
 		true % ignore functor
 	).
@@ -620,7 +620,7 @@ type_check_goal(get_char(A1),Env1,Env2,W,W) :- !,
 	type_check_term(A1,string,Env1,Env2).
 
 type_check_goal(throw(_),Env1,Env2,W,W) :- !, Env1 = Env2.
-type_check_goal(catch(Goal,_,Handler),Env1,Env3,W1,W3) :- !, 
+type_check_goal(catch(Goal,_,Handler),Env1,Env3,W1,W3) :- !,
 	type_check_goal(Goal,Env1,Env2,W1,W2),
 	type_check_goal(Handler,Env2,Env3,W2,W3).
 
@@ -639,7 +639,7 @@ type_check_goal(call(Goal,Arg1,Arg2),Env1,Env4,W,W) :- !,
 
 type_check_goal(Goal :: Signature, Env1, Env3,W,W) :- !,
 	/* first take into account the predicate signatures
-	   if one exists 				    */
+	   if one exists				    */
 	( participating_predicate(Goal) ->
 		signature(Goal,_,Env1,Env2)
 	;
@@ -649,10 +649,10 @@ type_check_goal(Goal :: Signature, Env1, Env3,W,W) :- !,
 	functor(Signature,F,A),
 	Goal      =.. [_|Args],
 	Signature =.. [_|Types],
-	type_check_terms(Args,Types,Env2,Env3).	
+	type_check_terms(Args,Types,Env2,Env3).
 type_check_goal(Goal :< Signature, Env1, Env3,W,W) :- !,
 	/* first take into account the predicate signatures
-	   if one exists 				    */
+	   if one exists				    */
 	( participating_predicate(Goal) ->
 		signature(Goal,_,Env1,Env2)
 	;
@@ -662,7 +662,7 @@ type_check_goal(Goal :< Signature, Env1, Env3,W,W) :- !,
 	functor(Signature,F,A),
 	Goal      =.. [_|Args],
 	Signature =.. [_|Types],
-	type_check_terms(Args,Types,Env2,Env3).	
+	type_check_terms(Args,Types,Env2,Env3).
 
 type_check_goal(type_to_any(A1,A2),Env1,Env3,W,W) :- !,
 	type_check_term(A1,_Type,Env1,Env2),
@@ -672,14 +672,14 @@ type_check_goal(any_to_type(A1,A2,Type),Env1,Env3,W,W) :- !,
 	type_check_term(A1,any,Env1,Env2),
 	type_check_term(A2,Type,Env2,Env3).
 
-type_check_goal(Goal,Env1,Env2,W,W) :- 
+type_check_goal(Goal,Env1,Env2,W,W) :-
 	participating_predicate(Goal), !,
 	signature(Goal,_,Env1,Env2).
 
 type_check_goal(Goal,Env1,Env2,W,RW) :-
 	/* all other predicates are simply ignored */
 	Warning = unknown_predicate_call(Goal),
- 	W = [Warning|RW],		
+	W = [Warning|RW],
 	Env1 = Env2.
 % }}}
 
@@ -690,67 +690,67 @@ type_check_expression(Exp,Type,Env1,Env2) :-
 type_check_expression(random,Type,Env1,Env1) :- !,  % NOTE: only supported by Yap
 	equate_types(Type,float).
 type_check_expression((-Exp),Type,Env1,Env2) :- !,
-	type_check_expression(Exp,Type,Env1,Env2).	
+	type_check_expression(Exp,Type,Env1,Env2).
 type_check_expression((\Exp),Type,Env1,Env2) :- !,
 	equate_types(Type,integer),
-	type_check_expression(Exp,Type,Env1,Env2).	
+	type_check_expression(Exp,Type,Env1,Env2).
 type_check_expression(abs(Exp),Type,Env1,Env2) :- !,
-	type_check_expression(Exp,Type,Env1,Env2).	
+	type_check_expression(Exp,Type,Env1,Env2).
 type_check_expression(log(Exp),Type,Env1,Env2) :- !,
 	equate_types(Type,float),
-	type_check_expression(Exp,Type,Env1,Env2).	
+	type_check_expression(Exp,Type,Env1,Env2).
 type_check_expression(integer(Exp),Type,Env1,Env2) :- !,
 	equate_types(Type,float), % explicit conversion from integer to float
-	type_check_expression(Exp,integer,Env1,Env2).	
+	type_check_expression(Exp,integer,Env1,Env2).
 type_check_expression(sign(Exp),Type,Env1,Env2) :- !,
-	type_check_expression(Exp,Type,Env1,Env2).	
+	type_check_expression(Exp,Type,Env1,Env2).
 type_check_expression((Exp1+Exp2),Type,Env1,Env3) :- !,
-	type_check_expression(Exp1,Type,Env1,Env2),	
-	type_check_expression(Exp2,Type,Env2,Env3).	
-type_check_expression((Exp1-Exp2),Type,Env1,Env3) :- !, 
-	type_check_expression(Exp1,Type,Env1,Env2),	
-	type_check_expression(Exp2,Type,Env2,Env3).	
+	type_check_expression(Exp1,Type,Env1,Env2),
+	type_check_expression(Exp2,Type,Env2,Env3).
+type_check_expression((Exp1-Exp2),Type,Env1,Env3) :- !,
+	type_check_expression(Exp1,Type,Env1,Env2),
+	type_check_expression(Exp2,Type,Env2,Env3).
 type_check_expression((Exp1*Exp2),Type,Env1,Env3) :- !,
-	type_check_expression(Exp1,Type,Env1,Env2),	
-	type_check_expression(Exp2,Type,Env2,Env3).	
+	type_check_expression(Exp1,Type,Env1,Env2),
+	type_check_expression(Exp2,Type,Env2,Env3).
 type_check_expression((Exp1/Exp2),Type,Env1,Env3) :- !,
 	equate_types(Type,float),
-	type_check_expression(Exp1,Type,Env1,Env2),	
-	type_check_expression(Exp2,Type,Env2,Env3).	
+	type_check_expression(Exp1,Type,Env1,Env2),
+	type_check_expression(Exp2,Type,Env2,Env3).
 type_check_expression((Exp1//Exp2),Type,Env1,Env3) :- !,
 	equate_types(Type,integer),
-	type_check_expression(Exp1,Type,Env1,Env2),	
-	type_check_expression(Exp2,Type,Env2,Env3).	
+	type_check_expression(Exp1,Type,Env1,Env2),
+	type_check_expression(Exp2,Type,Env2,Env3).
 type_check_expression((Exp1**Exp2),Type,Env1,Env3) :- !,
 	equate_types(Type,float),
-	type_check_expression(Exp1,Type,Env1,Env2),	
-	type_check_expression(Exp2,Type,Env2,Env3).	
-type_check_expression((Exp1 mod Exp2),Type,Env1,Env3) :- !, 
+	type_check_expression(Exp1,Type,Env1,Env2),
+	type_check_expression(Exp2,Type,Env2,Env3).
+type_check_expression((Exp1 mod Exp2),Type,Env1,Env3) :- !,
 	equate_types(Type,integer),
-	type_check_expression(Exp1,Type,Env1,Env2),	
-	type_check_expression(Exp2,Type,Env2,Env3).	
-type_check_expression(min(Exp1,Exp2),Type,Env1,Env3) :- !, 
-	type_check_expression(Exp1,Type,Env1,Env2),	
-	type_check_expression(Exp2,Type,Env2,Env3).	
-type_check_expression(max(Exp1,Exp2),Type,Env1,Env3) :- !, 
-	type_check_expression(Exp1,Type,Env1,Env2),	
-	type_check_expression(Exp2,Type,Env2,Env3).	
-type_check_expression((Exp1 >> Exp2),Type,Env1,Env3) :- !, 
+	type_check_expression(Exp1,Type,Env1,Env2),
+	type_check_expression(Exp2,Type,Env2,Env3).
+type_check_expression(min(Exp1,Exp2),Type,Env1,Env3) :- !,
+	type_check_expression(Exp1,Type,Env1,Env2),
+	type_check_expression(Exp2,Type,Env2,Env3).
+type_check_expression(max(Exp1,Exp2),Type,Env1,Env3) :- !,
+	type_check_expression(Exp1,Type,Env1,Env2),
+	type_check_expression(Exp2,Type,Env2,Env3).
+type_check_expression((Exp1 >> Exp2),Type,Env1,Env3) :- !,
 	equate_types(Type,integer),
-	type_check_expression(Exp1,Env1,Env2),	
-	type_check_expression(Exp2,Env2,Env3).	
-type_check_expression((Exp1 << Exp2),Type,Env1,Env3) :- !, 
+	type_check_expression(Exp1,Env1,Env2),
+	type_check_expression(Exp2,Env2,Env3).
+type_check_expression((Exp1 << Exp2),Type,Env1,Env3) :- !,
 	equate_types(Type,integer),
-	type_check_expression(Exp1,Type,Env1,Env2),	
-	type_check_expression(Exp2,Type,Env2,Env3).	
-type_check_expression((Exp1 /\ Exp2),Type,Env1,Env3) :- !, 
+	type_check_expression(Exp1,Type,Env1,Env2),
+	type_check_expression(Exp2,Type,Env2,Env3).
+type_check_expression((Exp1 /\ Exp2),Type,Env1,Env3) :- !,
 	equate_types(Type,integer),
-	type_check_expression(Exp1,Type,Env1,Env2),	
-	type_check_expression(Exp2,Type,Env2,Env3).	
-type_check_expression((Exp1 \/ Exp2),Type,Env1,Env3) :- !, 
+	type_check_expression(Exp1,Type,Env1,Env2),
+	type_check_expression(Exp2,Type,Env2,Env3).
+type_check_expression((Exp1 \/ Exp2),Type,Env1,Env3) :- !,
 	equate_types(Type,integer),
-	type_check_expression(Exp1,Type,Env1,Env2),	
-	type_check_expression(Exp2,Type,Env2,Env3).	
+	type_check_expression(Exp1,Type,Env1,Env2),
+	type_check_expression(Exp2,Type,Env2,Env3).
 type_check_expression(Exp,Type,Env1,Env2) :-
 	/* catch all */
 	type_check_term(Exp,Type,Env1,Env2).
@@ -761,7 +761,7 @@ unify_args([X|Xs],[Y|Ys],Env1,Env3) :-
 	type_check_goal((X = Y), Env1, Env2,_,[]),
 	unify_args(Xs,Ys,Env2,Env3).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ERROR MESSAGES
 
 head_error(Term,ExpType,InfType,Head,Body) :-
@@ -773,16 +773,16 @@ head_error(Term,ExpType,InfType,Head,Body) :-
 less_polymorphic_error(InfSig,DecSig) :-
 	numbervars(InfSig,0,_),
 	numbervars(DecSig,0,_),
-	format('TYPE ERROR: Inferred signature is less polymorphic than declared signature.\n',[]), 
+	format('TYPE ERROR: Inferred signature is less polymorphic than declared signature.\n',[]),
 	format('            inferred signature `~p\'\n',[InfSig]),
 	format('            declared signature `~p\'\n',[DecSig]).
 
 duplicate_signature_error(Signature) :-
-	format('TYPE ERROR: Predicate already has a signature.\n',[]), 
+	format('TYPE ERROR: Predicate already has a signature.\n',[]),
 	format('            duplicate signature `~w\'\n',[Signature]),
-	format('            Ignoring duplicate signature.\n',[]). 
+	format('            Ignoring duplicate signature.\n',[]).
 
-% control_error(+term,+type,+type,+head,+context) {{{ 
+% control_error(+term,+type,+type,+head,+context) {{{
 control_error(Term,ExpType,InfType,Head,context(Source,Context)) :-
 	format('TYPE ERROR: expected type `~w\' for term `~w\'\n',[ExpType,Term]),
 	format('            inferred type `~w\'\n',[InfType]),
@@ -824,18 +824,18 @@ assemble_marked_body(once(Context),Acc,Body) :-
 	assemble_marked_body(Context,once(Acc),Body).
 assemble_marked_body(findall(Context,Pattern,Result),Acc,Body) :-
 	assemble_marked_body(Context,findall(Pattern,Acc,Result),Body).
-% }}}	
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
-% Transform clauses: 	{{{
+% }}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Transform clauses:	{{{
 %
-% 	p(T1,...,Tn) :- B.
+%	p(T1,...,Tn) :- B.
 %
-% becomes: 
+% becomes:
 %
 %	p(X1,...,Xn) :- CHECKS, p'(X1,...,Xn).	(* one for each predicate *)
 %
 %	p'(T1,...,Tn) :- B'.
-% 
+%
 % where all calls to type safe predicates have been replaced in B to get B'
 
 transform_clauses(Clauses,NClauses) :-
@@ -889,7 +889,7 @@ tc_body(Body, TcBody) :-
 tc_body(Body, TcBody) :-
 	TcBody = Body.
 % }}}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 only_check_participating_clauses(_) :-
 	\+ type_checking, !, fail.
@@ -910,11 +910,11 @@ only_check_participating_clauses(Head,FA) :-
 participating_predicate(Head) :-
 	functor(Head,Name,Arity),
 	functor(Test,Name,Arity),
- 	signature(Test,_,[],_).
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+	signature(Test,_,[],_).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 basic_normalize_clause(Alias,Type,Clause) :-
 	Clause = type_check:basic_normalize(Alias,Type).
-	
+
 normalize_type(Type0,Type2) :-
 	( nonvar(Type0), basic_normalize(Type0,Type1) ->
 		normalize_type(Type1,Type2)
@@ -934,7 +934,7 @@ equate_types(Type1,Type2) :-
 	;
 		unify_with_occurs_check(Type1,Type2)
 	).
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Utility {{{
 
 lookup_eq([K - V | KVs],Key,Value) :-
@@ -947,7 +947,7 @@ snd_of_pairs([],[]).
 snd_of_pairs([_-Y|XYs],[Y|Ys]) :-
         snd_of_pairs(XYs,Ys).
 % }}}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Goal expansion {{{
 user:goal_expansion(UnsafeCall :: Signature, SafeCall) :- !,
 	( type_checking_runtime ->
@@ -956,10 +956,10 @@ user:goal_expansion(UnsafeCall :: Signature, SafeCall) :- !,
 		% prolog_load_context(term_position,'$stream_position'(_, LineNumber, _, _, _)),
 		% format('Expanding annotation in ~w at line ~w\n',[File,LineNumber]),
 		functor(UnsafeCall,F,A),
-		functor(Signature,F,A),	
+		functor(Signature,F,A),
 		UnsafeCall =.. [_|Args],
 		Signature  =.. [_|Types],
-		args_body(Args,Types,Guard,[],_),	
+		args_body(Args,Types,Guard,[],_),
 		SafeCall = ( UnsafeCall, ( Guard -> true ; throw(runtime_type_error(UnsafeCall))  ) )
 	;
 		SafeCall = UnsafeCall
@@ -976,7 +976,7 @@ user:goal_expansion(any_to_type(X,Y,Type),Goal) :- !,
 		Goal = (X = Y)
 	).
 % }}}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Term expansion {{{
 %	goes last
 %	otherwise we end up type checking the type checker...
@@ -985,13 +985,13 @@ user:term_expansion((:- type_check_options(Options)),[]) :-
 	handle_options(Options).
 user:term_expansion((:- runtime_type_check(Flag)),[]) :-
 	%writeln(type_checking_runtime(Flag)),
- 	handle_option(runtime(Flag)).	
+	handle_option(runtime(Flag)).
 user:term_expansion((:- type Name ---> Constructors),
 		     Clauses
 		    ) :-
 	( \+ \+ ( numbervars(Name, 0, _), ground(Constructors) ) ->
 		phrase(constructor_clauses(Constructors,Name), Clauses)
-	;   
+	;
 		format("ERROR: invalid TYPE definition~w\n\tType definitions must be range-restricted!\n", [(:- type Name ---> Constructors)]),
 		Clauses = []
 	).
@@ -1023,7 +1023,7 @@ user:term_expansion(Clause, NClause) :-
 
 % {{{
 final_message(tc_stats(E,T)) :-
-	( T > 0, type_checking_verbose -> 
+	( T > 0, type_checking_verbose ->
 		prolog_load_context(module,Mod),
 		write('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'), nl,
 		format('% Type checking for module `~w\' done:\n%\tfound type errors in ~w out of ~w clauses.\n',[Mod,E,T]),
@@ -1046,22 +1046,22 @@ inc_error_stats(tc_stats(E,T),tc_stats(NE,NT)) :-
 inc_ok_stats(tc_stats(E,T),tc_stats(E,NT)) :-
 	NT is T + 1.
 % }}}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Predefined types:	{{{
 %
 %  The types list(T), pair(A,B), boolean, integer and float are predefined by the type
 %  checker.
 
-:- type list(T) 	---> [] ; [T|list(T)].
+:- type list(T)		---> [] ; [T|list(T)].
 
-:- type pair(A,B) 	---> A - B.
+:- type pair(A,B)	---> A - B.
 
 :- type boolean		---> true ; false.
 
 :- type cmp		---> (=) ; (>) ; (<).
 % }}}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Predefined signatures:	{{{
 %
 
@@ -1069,25 +1069,25 @@ inc_ok_stats(tc_stats(E,T),tc_stats(E,NT)) :-
 % :- pred writeln(_).
 
 % }}}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % BUGS FOUND {{{
 % ==========
 %
 % In rbtrees.pl (Vitor Santos Costa)
-%	
+%
 %	:- pred rb_lookupall(K,V,rbtree(K,V)).
 %	:- pred lookupall(K,V,tree(K,V)).
 %	:- pred lookupall(cmp,K,V,tree(K,V)).
-%	
+%
 %	rb_lookupall(Key, Val, t(_,Tree)) :-
 %		lookupall(Key, Val, Tree).
-%	
+%
 %	lookupall(_, _, black(nil,_,_,nil)) :- !, fail.
 %	lookupall(Key, Val, Tree) :-
 %		getkey(Tree,KA),		% arg(2,Tree,KA),
 %		compare(Cmp,KA,Key),
 %		lookupall(Cmp,Key,Val,Tree).
-%	
+%
 %	lookupall(>, K, V, Tree) :-
 %		getright(Tree,NTree),		% arg(4,Tree,NTree),
 %		rb_lookupall(K, V, NTree).	% BUG !!!
@@ -1101,18 +1101,18 @@ inc_ok_stats(tc_stats(E,T),tc_stats(E,NT)) :-
 %		lookupall(K, V, NTree).
 %
 % }}}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
-%  NOTES {{{ 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  NOTES {{{
 %  =====
 %
 % In rbtrees.pl (Vitor Santos Costa)
 %  * cannot share Nil in old and new tree:
-% 
+%
 %	:- pred rb_clone(rbtree(K,_V1),rbtree(K,V2),list(pair(K,V2))).
 %	rb_clone(t(_Nil1,T),t(Nil2,NT),Ns) :-
 %		new(Nil2),
-%		clone(T,NT,Ns,[]).	
+%		clone(T,NT,Ns,[]).
 %
 % }}}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
