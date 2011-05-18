@@ -737,8 +737,8 @@ type_check_expression(max(Exp1,Exp2),Type,Env1,Env3) :- !,
 	type_check_expression(Exp2,Type,Env2,Env3).
 type_check_expression((Exp1 >> Exp2),Type,Env1,Env3) :- !,
 	equate_types(Type,integer),
-	type_check_expression(Exp1,Env1,Env2),
-	type_check_expression(Exp2,Env2,Env3).
+	type_check_expression(Exp1,Type,Env1,Env2),
+	type_check_expression(Exp2,Type,Env2,Env3).
 type_check_expression((Exp1 << Exp2),Type,Env1,Env3) :- !,
 	equate_types(Type,integer),
 	type_check_expression(Exp1,Type,Env1,Env2),
