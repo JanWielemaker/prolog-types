@@ -204,7 +204,7 @@
 	basic_normalize/2.
 
 :- thread_local
-	clause_to_check/1.
+	clause_to_check/2.		% Clause, Location
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -367,25 +367,29 @@ signature_clause(Signature,Clause) :-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type_check_file(NClauses) :-
-	findall(Clause,retract(clause_to_check(Clause)),Clauses),
+	findall(Pos:Clause,retract(clause_to_check(Clause, Pos)),PosClauses),
 	( type_checking ->
-		type_check_clauses(Clauses,Stats),
+		type_check_clauses(PosClauses,Stats),
 		( type_checking_runtime ->
-			transform_clauses(Clauses,NClauses)
+			transform_clauses(PosClauses,NClauses)
 		;
-			NClauses = Clauses
+			NClauses = PosClauses
 		),
 		final_message(Stats)
 	;
-		NClauses = Clauses
+		NClauses = PosClauses
 	).
 
-type_check_clauses(Clauses,Stats) :-
+plain_clause('$source_location'(_,_):Clause, Clause) :- !.
+plain_clause(Clause, Clause).
+
+type_check_clauses(PosClauses,Stats) :-
 	init_stats(Stats0),
-	type_check_clauses(Clauses,Stats0,Stats).
+	type_check_clauses(PosClauses,Stats0,Stats).
 
 type_check_clauses([],Stats,Stats).
-type_check_clauses([Clause|Clauses],Stats0,Stats) :-
+type_check_clauses([PosClause|Clauses],Stats0,Stats) :-
+	plain_clause(PosClause, Clause),
 	catch(
 		( type_check_clause(Clause) ,
 		  inc_ok_stats(Stats0,Stats1)
@@ -398,8 +402,6 @@ type_check_clauses([Clause|Clauses],Stats0,Stats) :-
 	     ),
 	type_check_clauses(Clauses,Stats1,Stats).
 
-type_check_clause((:- _)) :- !,
-	true. % ignoring
 type_check_clause((Head :- Body)) :- !,
 	functor(Head,P,N),
 	( trusted_predicate(P/N) ->
@@ -814,20 +816,25 @@ assemble_marked_body(findall(Context,Pattern,Result),Acc,Body) :-
 %
 % becomes:
 %
-%	p(X1,...,Xn) :- CHECKS, p'(X1,...,Xn).	(* one for each predicate *)
+%	p(X1,...,Xn) :- CHECKS, p1(X1,...,Xn).	(* one for each predicate *)
 %
-%	p'(T1,...,Tn) :- B'.
+%	p1(T1,...,Tn) :- B'.
 %
 % where all calls to type safe predicates have been replaced in B to get B'
+
+%%	transform_clauses(+PosClauses, -NewPosClauses).
 
 transform_clauses(Clauses,NClauses) :-
 	wrappers(Clauses,NClauses).
 
-wrappers(Clauses,NClauses) :-
-	findall(FA,(member(Clause,Clauses), only_check_participating_clauses(Clause,FA)),FAs0),
+wrappers(PosClauses,NClauses) :-
+	findall(FA, ( member(PosClause,PosClauses),
+		      plain_clause(PosClause, Clause),
+		      participating_clause(Clause,FA)
+		    ),FAs0),
 	sort(FAs0,FAs),
 	maplist(wrapper_clause,FAs,WrapperClauses),
-	maplist(tc_clause,Clauses,TcClauses),
+	maplist(tc_clause,PosClauses,TcClauses),
 	append(WrapperClauses,TcClauses,NClauses).
 
 % PORTRAY_CLAUSE bug?
@@ -841,10 +848,18 @@ wrapper_clause(F/A,Clause) :-
 	tc_head(Head,Call),
 	Clause = (Head :- type_check:signature(Head,_,[],_), Call ).
 
-tc_clause((Head :- Body),(TcHead :- TcBody)) :- !,
+%%	tc_clause(+PosClause, -NewPosClause) is det.
+
+tc_clause(Pos:Clause, Pos:NewClause) :-
+	Pos = '$source_location'(_,_), !,
+	tc_clause_(Clause, NewClause).
+tc_clause(Clause, NewClause) :-
+	tc_clause_(Clause, NewClause).
+
+tc_clause_((Head :- Body),(TcHead :- TcBody)) :- !,
 	tc_head(Head,TcHead),
 	tc_body(Body,TcBody).
-tc_clause(Head, TcHead) :-
+tc_clause_(Head, TcHead) :-
 	tc_head(Head,TcHead).
 
 tc_head(Head,TcHead) :-
@@ -999,7 +1014,8 @@ type_term_expansion(end_of_file,Clauses) :-
 
 type_term_expansion(Clause, NClause) :-
 	participating_clause(Clause),
-	assert(clause_to_check(Clause)),
+	source_location(File, Line),
+	assert(clause_to_check(Clause, '$source_location'(File,Line))),
 	NClause = [].
 
 % }}}
