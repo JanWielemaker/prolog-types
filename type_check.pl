@@ -348,34 +348,20 @@ args_body([],[],true,Env,Env).
 args_body([Term|Terms],[Type|Types],(type_check:type_check_term(Term,Type,EnvIn,Env),Body),EnvIn,EnvOut) :-
 	args_body(Terms,Types,Body,Env,EnvOut).
 
-signature_clause(Signature, Clause) :-
-	( check_signature(Signature) ->
-		signature_clause_(Signature, Clause)
-	;
-		true
-	).
-
-
-signature_clause_(Signature,Clause) :-
+signature_clause(Signature,Clause) :-
 	functor(Signature,Name,Arity),
 	functor(Call,Name,Arity),
 	Call      =.. [_|Args],
 	Signature =.. [_|Types],
 	args_body(Args,Types,Body,EnvIn,EnvOut),
-	Clause =
-	( type_check:signature(Call,Types,EnvIn,EnvOut) :-
+	(   signature(Call, StoredTypes, [], _),
+	    \+ variant(StoredTypes,Types)
+	->  print_message(error, type_check(duplicate_signature(Signature))),
+	    Clause = []
+	;   Clause =
+	    ( type_check:signature(Call,Types,EnvIn,EnvOut) :-
 		Body
-	).
-
-check_signature(Signature) :-
-	nonvar(Signature),
-	functor(Signature,Name,Arity),
-	functor(Prototype,Name,Arity),
-	( signature(Prototype,_,[],_) ->
-		duplicate_signature_error(Signature),
-		fail
-	;
-		true
+	    )
 	).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -781,11 +767,6 @@ less_polymorphic_error(InfSig,DecSig) :-
 	format('            inferred signature `~p\'\n',[InfSig]),
 	format('            declared signature `~p\'\n',[DecSig]).
 
-duplicate_signature_error(Signature) :-
-	format('TYPE ERROR: Predicate already has a signature.\n',[]),
-	format('            duplicate signature `~w\'\n',[Signature]),
-	format('            Ignoring duplicate signature.\n',[]).
-
 % control_error(+term,+type,+type,+head,+context) {{{
 control_error(Term,ExpType,InfType,Head,context(Source,Context)) :-
 	format('TYPE ERROR: expected type `~w\' for term `~w\'\n',[ExpType,Term]),
@@ -1072,6 +1053,22 @@ inc_ok_stats(tc_stats(E,T),tc_stats(E,NT)) :-
 
 :- type cmp		---> (=) ; (>) ; (<).
 % }}}
+
+		 /*******************************
+		 *	      MESSAGES		*
+		 *******************************/
+
+:- multifile
+	prolog:message//1.
+
+prolog:message(type_check(Term)) -->
+	[ 'Type checker: ' ],
+	type_message(Term).
+
+type_message(duplicate_signature(Signature)) -->
+	[ 'Duplicate signature: ~q'-[Signature] ].
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Predefined signatures:	{{{
