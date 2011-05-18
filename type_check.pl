@@ -189,7 +189,6 @@
 :- multifile
 	user:term_expansion/2,
 	user:goal_expansion/2,
-	prolog:message/3,
 	constructor/4,
 	constructor_info/4,
 	signature/4,
@@ -785,10 +784,6 @@ control_warning_(unknown_predicate_call(Call),context(Source,Context)) :-
 	assemble_marked_body(Context,'HERE'(Source),MarkedBody),
 	portray_clause(('...' :- MarkedBody)).
 
-prolog:message(error(type_error(Term,ExpectedType,InferredType))) -->
-	[ '\n\tTYPE ERROR: expected type `~w\' for term `~w\'\n' - [ExpectedType, Term],
-	  '\t            inferred type `~w\'\n' - [InferredType]
-	].
 % }}}
 
 % assemble_marked_body(+context,+goal,-goal) {{{
