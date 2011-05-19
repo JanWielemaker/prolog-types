@@ -45,6 +45,17 @@ Docs: https://lirias.kuleuven.be/bitstream/123456789/197561/1/shorticlp08.pdf
   :- type stream.
   ==
 
+  ==
+  :- type boolean < [atom] --->
+	( true
+	; false
+	).
+  :- type integer < [number].
+  :- type atom < [atomic].
+  :- type number < [atomic].
+  :- type stream.
+  ==
+
 
 
 

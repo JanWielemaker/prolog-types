@@ -13,14 +13,16 @@
 
 This module deals with Hindley-Milner declations  of types and predicate
 signatures.
+
+@tbd	Type hierarchy.
 */
 
 :- meta_predicate
 	current_type(:, ?).
 
 :- multifile
-	current_type/3,
-	subtype_of/2.
+	current_type/3,			% Type, Module, Constructor
+	subtype_of/3.			% Type, Module, Super
 
 %%	current_type(:Type, ?Constructor) is nondet.
 %
@@ -29,6 +31,14 @@ signatures.
 
 current_type(M:T, Constructor) :-
 	current_type(T, M, Constructor).
+
+%%	subtype_of(:Type, Super) is nondet.
+%
+%	True if Type is a subtype of Super.
+
+subtype_of(M:Type, Super) :-
+	subtype_of(Type, M, Super).
+
 
 %%	type(+Declaration)
 %
@@ -47,17 +57,35 @@ type(Declaration) :-
 expand_type((Type ---> Constructor), []) :-
 	\+ \+ (numbervars(Type, 0, _), \+ ground(Constructor)), !,
 	instantiation_error(Constructor).
-expand_type((Type ---> Constructor),
-	    [ TestClause,
-	      TestPartialClause,
+expand_type((TypeSpec ---> Constructor),
+	    [ QTestClause,
+	      QTestPartialClause,
 	      type_decl:current_type(Type, M, Constructor),
 	      type_decl:partial(Head, C, C:PartialHead)
+	    | SubTypeClauses
 	    ]) :-
 	prolog_load_context(module, M),
+	subtype_clauses(TypeSpec, M, Q, Type, SubTypeClauses),
 	test_clause(Type, Constructor, TestClause),
 	test_partial_clause(Type, Constructor, TestPartialClause),
+	qualify(M, Q, TestClause, QTestClause),
+	qualify(M, Q, TestPartialClause, QTestPartialClause),
 	extend(Type, X, Head),
 	extend(partial_, Type, X, PartialHead).
+
+subtype_clauses(QType < Supers, M, Q, Type, SubTypeClauses) :- !,
+	strip_module(M:QType, Q, Type),
+	maplist(subtype_clause(Type, Q), Supers, SubTypeClauses).
+subtype_clauses(QType, M, Q, Type, []) :-
+	strip_module(M:QType, Q, Type).
+
+subtype_clause(Type, M, QSuper,
+	       type_decl:subtype_of(Type, M, Q:Super)) :-
+	strip_module(M:QSuper, Q, Super).
+
+qualify(M, M, G, G) :- !.
+qualify(_, Q, G, Q:G).
+
 
 %%	test_clause(+Type, +TypeConstructor, -Body) is det.
 
@@ -71,8 +99,6 @@ test_body((C1;C2), X, (B1->true;B2)) :- !,
 test_body(Type, X, B) :-
 	test_type(Type, X, B).
 
-test_type(\Type, X, B) :- !,
-	extend(Type, X, B).
 test_type(Atom, X, (X == Atom)) :-
 	atomic(Atom), !.
 test_type(Term, X, (nonvar(X),X=T2,TArgs)) :-
@@ -105,8 +131,6 @@ test_partial_body((C1;C2), X, (B1->true;B2)) :- !,
 test_partial_body(Type, X, B) :-
 	test_partial_type(Type, X, B).
 
-test_partial_type(\Type, X, B) :- !,
-	extend(Type, X, B).
 test_partial_type(Atom, X, (var(X) -> true ; X == Atom)) :-
 	atomic(Atom), !.
 test_partial_type(Term, X, (var(X) -> true ; X=T2,TArgs)) :-
