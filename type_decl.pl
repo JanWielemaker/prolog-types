@@ -5,7 +5,9 @@
 	    subtype_of/2,		% T1, T2
 	    op(1150, fx, type),
 	    op(1130, xfx, --->),
-	    op(1150, fx, pred)
+	    op(1150, fx, pred),		% signature declaration
+	    op(200, fy, ?),		% argument mode
+	    op(200, fy, @)		% argument mode
 	  ]).
 :- use_module(library(apply)).
 
@@ -14,7 +16,9 @@
 This module deals with Hindley-Milner declations  of types and predicate
 signatures.
 
-@tbd	Type hierarchy.
+@tbd	Implement empty types
+@tbd	Implement (a;b;c) as type argument
+@tbd	Implement pred(ClosureArgs) as type argument
 */
 
 :- meta_predicate

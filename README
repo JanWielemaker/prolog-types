@@ -37,15 +37,6 @@ Docs: https://lirias.kuleuven.be/bitstream/123456789/197561/1/shorticlp08.pdf
 ---++++ Type inheritance
 
   ==
-  :- type atomic --->
-	( \number
-	; \atom
-	; \stream
-	).
-  :- type stream.
-  ==
-
-  ==
   :- type boolean < [atom] --->
 	( true
 	; false

@@ -2,18 +2,22 @@
 	  []).
 :- use_module(type_decl).
 
-% Basic system types
+% Basic system types. Note that this also   tells  the system that e.g.,
+% the predicate atomic/1 exists  and  succeeds   iff  the  argument is a
+% atomic.  There are some exceptions.  See comments.
 
 :- type system:atomic.
 :- type system:atom	  < [system:atomic].
-:- type system:module	  < [system:atom].
+:- type system:module	  < [system:atom].	% current_module/1
 :- type system:number	  < [system:atomic].
-:- type system:stream	  < [system:atomic].
+:- type system:stream	  < [system:atomic].	% is_stream/1
 :- type system:db_ref	  < [system:atomic].
 :- type system:clause_ref < [system:db_ref].
 :- type system:record_ref < [system:db_ref].
 :- type system:integer	  < [system:number].
 :- type system:float	  < [system:number].
+:- type system:thread	  < [system:integer,system:atom]. % ???
+:- type system:mutex	  < [system:integer,system:atom]. % ???
 
 % Derived types
 
@@ -41,6 +45,7 @@
 	;   spacing((standard,next_argument))
 	).
 
+
 		 /*******************************
 		 *	     PREDICATES		*
 		 *******************************/
@@ -49,3 +54,39 @@
 :- pred system:write(+system:stream, @any) is det.
 :- pred system:write_term(@any, +list(system:write_option)) is det.
 :- pred system:write_term(+system:stream, @any, +list(system:write_option)) is det.
+
+:- pred system:sort(+system:list(X), -system:list(X)) is det.
+:- pred system:msort(+system:list(X), -system:list(X)) is det.
+:- pred system:keysort(+system:list(system:pair(K,V)), -system:list(system:pair(K,V))) is det.
+
+:- pred system: =(-X,-X) is det.	% ????
+:- pred system: =(+X,-X) is det.
+:- pred system: =(+X,-X) is det.
+:- pred system: =(+any,+any) is semidet.
+
+:- pred system:  ==(?any,?any) is semidet.
+:- pred system: =@<(?any,?any) is semidet.
+:- pred system: >@=(?any,?any) is semidet.
+
+:- pred system:  is(-number,@evaluable) is det.
+:- pred system: =:=(@evaluable,@evaluable) is semidet.
+:- pred system: =\=(@evaluable,@evaluable) is semidet.
+:- pred system:   <(@evaluable,@evaluable) is semidet.
+:- pred system:   >(@evaluable,@evaluable) is semidet.
+:- pred system:  =<(@evaluable,@evaluable) is semidet.
+:- pred system:  >=(@evaluable,@evaluable) is semidet.
+
+:- pred system:findall(?X, @pred, -list(X)) is det.
+:- pred system:setof(?X, @pred, -list(X)) is semidet. % TBD: existential qualification
+:- pred system:bagof(?X, @pred, -list(X)) is semidet.
+
+
+		 /*******************************
+		 *	    FUNCTIONS		*
+		 *******************************/
+
+:- func +(X) -> X.
+:- func +(integer,integer) -> integer .
+:- func +(number,float) -> float .
+:- func +(float,number) -> float .
+
