@@ -3,6 +3,7 @@
 	    (pred)/1,			% +Signature
 	    current_type/2,		% :Name, ?Definition
 	    subtype_of/2,		% T1, T2
+	    type_constraint/2,		% +Type, +Value
 	    op(1150, fx, type),
 	    op(1130, xfx, --->),
 	    op(1150, fx, pred),		% signature declaration
@@ -60,9 +61,9 @@ subtype_of(Type, SM:Super) :-
 %
 %	  $ A semidet predicate <T>(X) :
 %	  This predicates validates that X is of type <T>
-%	  $ A semidet predicate partial_<T>(X) :
-%	  This predicates validates that X is of type <T> or var.
-%	  $ Extension to current_type/2.
+%	  $ A hook for partial/2 :
+%	  $ A hook for type_constraint/2 :
+%	  $ Extension to current_type/2 :
 
 type(Declaration) :-
 	throw(error(context_error(nodirective, type(Declaration)), _)).
@@ -74,13 +75,15 @@ expand_type((TypeSpec ---> Constructor),
 	    [ QTestClause,
 	      QTestPartialClause,
 	      type_decl:current_type(Type, M, Constructor),
-	      type_decl:partial(Head, C, C:PartialHead)
+	      type_decl:partial(Head, Q, Q:PartialHead),
+	      (type_decl:type_constraint(Head, Q, X) :- ConstraintBody)
 	    | SubTypeClauses
 	    ]) :- !,
 	prolog_load_context(module, M),
 	subtype_clauses(TypeSpec, M, Q, Type, SubTypeClauses),
 	test_clause(Type, Constructor, TestClause),
 	test_partial_clause(Type, Constructor, TestPartialClause),
+	constraint_body(M:Type, Constructor, X, ConstraintBody),
 	qualify(M, Q, TestClause, QTestClause),
 	qualify(M, Q, TestPartialClause, QTestPartialClause),
 	extend(Type, X, Head),
@@ -170,14 +173,87 @@ partial_type_arg(Var, X, Call) :-
 partial_type_arg(Type, X, B) :-
 	extend(partial_, Type, X, B).
 
+%%	constraint_clause(+Type, +TypeConstructor, -Body) is det.
+%
+%	This clause is called from   type_constraint/2, iff the argument
+%	is a compound term.
+
+constraint_body(M:_Type, Constructor, X, Body) :-
+	constructor_constraint(Constructor, M, X, Body).
+
+constructor_constraint((C1;C2), M, X, B) :- !,
+	constraint_type(C1, M, X, B1),
+	constructor_constraint(C2, M, X, B2),
+	one_of(B1, B2, B).
+constructor_constraint(Type, M, X, B) :-
+	constraint_type(Type, M, X, B).
+
+one_of(true, B, B) :- !.
+one_of(B, true, B) :- !.
+one_of(B1, B2, (B1->true;B2)).
+
+constraint_type(Atom, _, _, true) :-
+	atomic(Atom), !.
+constraint_type(Term, M, X, (X = T2, TArgs)) :-
+	functor(Term, Name, Arity),
+	functor(T2, Name, Arity),
+	Term =.. [Name|TypeArgs],
+	T2   =.. [Name|Args],
+	maplist(constraint_type_arg(M), TypeArgs, Args, TArgList),
+	list_to_conj(TArgList, TArgs).
+
+constraint_type_arg(_, Any, _, B) :-
+	Any == any, !,
+	B = true.
+constraint_type_arg(M, Type, X, Call) :-
+	Call = type_decl:type_constraint(M:Type, X).
+
+
 :- public partial/2.
-:- meta_predicate partial(:,?).
-:- multifile partial/3.
+:- meta_predicate
+	partial(:,?),
+	type_constraint(:,?).
+:- multifile
+	partial/3,
+	type_constraint/3.
 
 partial(_, X) :-
 	var(X), !.
 partial(M:T, X) :-
 	partial(T, M, X).
+
+%%	type_constraint(+Type, +Value) is semidet.
+%
+%	Create a contraint that limits Value to  be of Type. If Value is
+%	ground, this is the same call(Type,Value).   If Value is partial
+%	with respect to Type,  create   constraint(s)  on  the remaining
+%	variable(s) that establish the type relation.
+
+type_constraint(Type, Var) :-
+	var(Var), !,
+	(   get_attr(Var, type, Type2)
+	->  (   Type2 \== Type
+	    ->	subtype_of(NewType, Type),
+		subtype_of(NewType, Type2),
+		put_attr(Var, type, NewType)
+	    ;	true
+	    )
+	;   put_attr(Var, type, Type)
+	).
+type_constraint(M:Type, Value) :-
+	compound(Value), !,
+	type_constraint(Type, M, Value).
+type_constraint(value(Fixed), Value) :- !,
+	Value == Fixed.
+type_constraint(Type, Value) :-
+	call(Type, Value).
+
+%%	(type):attr_unify_hook(Type, Val) is semidet.
+%
+%	Unification hook for the type constraint.
+
+(type):attr_unify_hook(Type, Val) :-
+	type_constraint(Type, Val).
 
 %%	pred(+Signature)
 %

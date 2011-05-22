@@ -72,7 +72,7 @@ type(Type, Argument) :-
 	call(Type, Argument).
 type(Type, Argument) :-
 	nonvar(Argument), !,
-	partial_type_constraint(Type, Argument).
+	type_constraint(Type, Argument).
 type(Type, Var) :-
 	get_attr(Var, type, VarType), !,
 	unify_types(Type, VarType, NewType),
