@@ -61,7 +61,6 @@ subtype_of(Type, SM:Super) :-
 %
 %	  $ A semidet predicate <T>(X) :
 %	  This predicates validates that X is of type <T>
-%	  $ A hook for partial/2 :
 %	  $ A hook for type_constraint/2 :
 %	  $ Extension to current_type/2 :
 
@@ -73,21 +72,16 @@ expand_type((Type ---> Constructor), []) :-
 	instantiation_error(Constructor).
 expand_type((TypeSpec ---> Constructor),
 	    [ QTestClause,
-	      QTestPartialClause,
 	      type_decl:current_type(Type, M, Constructor),
-	      type_decl:partial(Head, Q, Q:PartialHead),
 	      (type_decl:type_constraint(Head, Q, X) :- ConstraintBody)
 	    | SubTypeClauses
 	    ]) :- !,
 	prolog_load_context(module, M),
 	subtype_clauses(TypeSpec, M, Q, Type, SubTypeClauses),
 	test_clause(Type, Constructor, TestClause),
-	test_partial_clause(Type, Constructor, TestPartialClause),
 	constraint_body(M:Type, Constructor, X, ConstraintBody),
 	qualify(M, Q, TestClause, QTestClause),
-	qualify(M, Q, TestPartialClause, QTestPartialClause),
-	extend(Type, X, Head),
-	extend(partial_, Type, X, PartialHead).
+	extend(Type, X, Head).
 expand_type(TypeSpec,
 	    [ type_decl:current_type(Type, M, primitive)
 	    | SubTypeClauses
@@ -142,37 +136,6 @@ type_arg(Type, X, B) :-
 	extend(Type, X, B).
 
 
-%%	test_partial_clause(+Type, +TypeConstructor, -Body) is det.
-
-test_partial_clause(Type, Constructor, (Head :- Body)) :-
-	extend(partial_, Type, X, Head),
-	test_partial_body(Constructor, X, Body).
-
-test_partial_body((C1;C2), X, (B1->true;B2)) :- !,
-	test_partial_type(C1, X, B1),
-	test_partial_body(C2, X, B2).
-test_partial_body(Type, X, B) :-
-	test_partial_type(Type, X, B).
-
-test_partial_type(Atom, X, (var(X) -> true ; X == Atom)) :-
-	atomic(Atom), !.
-test_partial_type(Term, X, (var(X) -> true ; X=T2,TArgs)) :-
-	functor(Term, Name, Arity),
-	functor(T2, Name, Arity),
-	Term =.. [Name|TypeArgs],
-	T2   =.. [Name|Args],
-	maplist(partial_type_arg, TypeArgs, Args, TArgList),
-	list_to_conj(TArgList, TArgs).
-
-partial_type_arg(Any, _, B) :-
-	Any == any, !,
-	B = true.
-partial_type_arg(Var, X, Call) :-
-	var(Var), !,
-	Call = type_decl:partial(Var, X).
-partial_type_arg(Type, X, B) :-
-	extend(partial_, Type, X, B).
-
 %%	constraint_clause(+Type, +TypeConstructor, -Body) is det.
 %
 %	This clause is called from   type_constraint/2, iff the argument
@@ -209,18 +172,10 @@ constraint_type_arg(M, Type, X, Call) :-
 	Call = type_decl:type_constraint(M:Type, X).
 
 
-:- public partial/2.
 :- meta_predicate
-	partial(:,?),
 	type_constraint(:,?).
 :- multifile
-	partial/3,
 	type_constraint/3.
-
-partial(_, X) :-
-	var(X), !.
-partial(M:T, X) :-
-	partial(T, M, X).
 
 %%	type_constraint(+Type, +Value) is semidet.
 %
@@ -254,6 +209,10 @@ type_constraint(Type, Value) :-
 
 (type):attr_unify_hook(Type, Val) :-
 	type_constraint(Type, Val).
+
+(type):attribute_goals(Var) -->
+	{ get_attr(Var, type, Type) },
+	[ type_constraint(Type, Var) ].
 
 %%	pred(+Signature)
 %
