@@ -29,12 +29,24 @@ signatures.
 	current_type/3,			% Type, Module, Constructor
 	subtype_of/3.			% Type, Module, Super
 
+qualify_type(M:Type, Q:Type) :-
+	(   current_type(Type, M, _)
+	->  Q = M
+	;   var(Type)
+	->  Q = M
+	;   extend(Type, _, Test),
+	    predicate_property(M:Test, imported_from(M2))
+	->  Q = M2
+	;   Q = M
+	).
+
 %%	current_type(:Type, ?Constructor) is nondet.
 %
 %	True if Type is declared as a Hindley-Milner type with the given
 %	Constructor.
 
-current_type(M:T, Constructor) :-
+current_type(Type, Constructor) :-
+	qualify_type(Type, M:T),
 	current_type(T, M, Constructor).
 
 %%	subtype_of(:Type, Super) is nondet.
@@ -43,15 +55,20 @@ current_type(M:T, Constructor) :-
 %
 %	@tbd	module inheritance of types.
 
-subtype_of(Type, Type).
-subtype_of(M:Type, Super) :-
+subtype_of(Sub, Super) :-
+	qualify_type(Sub, QSub),
+	qualify_type(Super, QSuper),
+	qsubtype_of(QSub, QSuper).
+
+qsubtype_of(Type, Type).
+qsubtype_of(M:Type, Super) :-
 	nonvar(Type), !,
 	subtype_of(Type, M, Parent),
-	subtype_of(Parent, Super).
-subtype_of(Type, SM:Super) :-
+	qsubtype_of(Parent, Super).
+qsubtype_of(Type, Super) :-
 	nonvar(Super),
-	subtype_of(Sub, SubM, SM:Super),
-	subtype_of(Type, SubM:Sub).
+	subtype_of(Sub, SubM, Super),
+	qsubtype_of(Type, SubM:Sub).
 
 
 %%	type(+Declaration)
@@ -177,33 +194,32 @@ constraint_type_arg(M, Type, X, Call) :-
 :- multifile
 	type_constraint/3.
 
-%%	type_constraint(+Type, +Value) is semidet.
+%%	type_constraint(:Type, +Value) is semidet.
 %
 %	Create a contraint that limits Value to  be of Type. If Value is
 %	ground, this is the same call(Type,Value).   If Value is partial
 %	with respect to Type,  create   constraint(s)  on  the remaining
 %	variable(s) that establish the type relation.
 
-type_constraint(Type, Var) :-
+type_constraint(Type, Value) :-
+	qualify_type(Type, QType),
+	qtype_constraint(QType, Value).
+
+qtype_constraint(Type, Var) :-
 	var(Var), !,
 	(   get_attr(Var, type, Type2)
 	->  (   Type2 \== Type
-	    ->	subtype_of(NewType, Type),
-		subtype_of(NewType, Type2),
+	    ->	qsubtype_of(NewType, Type),
+		qsubtype_of(NewType, Type2),
 		put_attr(Var, type, NewType)
 	    ;	true
 	    )
 	;   put_attr(Var, type, Type)
 	).
-type_constraint(M:Type, Value) :-
+qtype_constraint(M:Type, Value) :-
 	compound(Value), !,
-	(   extend(Type, Value, Test),
-	    predicate_property(M:Test, imported_from(Q))
-	->  true
-	;   Q = M
-	),
-	type_constraint(Type, Q, Value).
-type_constraint(Type, Value) :-
+	type_constraint(Type, M, Value).
+qtype_constraint(Type, Value) :-
 	call(Type, Value).
 
 %%	(type):attr_unify_hook(Type, Val) is semidet.
