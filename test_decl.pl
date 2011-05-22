@@ -1,8 +1,8 @@
 :- use_module(type_decl).
 
-:- type list --->
+:- type system:list --->
 	(   []
-	;   [any|list]
+	;   [any|system:list]
 	).
 
 :- type list(X) --->

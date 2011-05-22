@@ -168,7 +168,8 @@ constraint_type_arg(_, Any, _, B) :-
 	Any == any, !,
 	B = true.
 constraint_type_arg(M, Type, X, Call) :-
-	Call = type_decl:type_constraint(M:Type, X).
+	strip_module(M:Type, Q, PT),
+	Call = type_decl:type_constraint(Q:PT, X).
 
 
 :- meta_predicate
@@ -196,9 +197,12 @@ type_constraint(Type, Var) :-
 	).
 type_constraint(M:Type, Value) :-
 	compound(Value), !,
-	type_constraint(Type, M, Value).
-type_constraint(value(Fixed), Value) :- !,
-	Value == Fixed.
+	(   extend(Type, Value, Test),
+	    predicate_property(M:Test, imported_from(Q))
+	->  true
+	;   Q = M
+	),
+	type_constraint(Type, Q, Value).
 type_constraint(Type, Value) :-
 	call(Type, Value).
 
