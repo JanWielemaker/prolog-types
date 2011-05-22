@@ -23,16 +23,17 @@ signatures.
 */
 
 :- meta_predicate
-	current_type(:, ?).
+	current_type(:, ?),
+	subtype_of(:, :).
 
 :- multifile
 	current_type/3,			% Type, Module, Constructor
 	subtype_of/3.			% Type, Module, Super
 
 qualify_type(M:Type, Q:Type) :-
-	(   current_type(Type, M, _)
+	(   var(Type)
 	->  Q = M
-	;   var(Type)
+	;   current_type(Type, M, _)
 	->  Q = M
 	;   extend(Type, _, Test),
 	    predicate_property(M:Test, imported_from(M2))
@@ -49,7 +50,7 @@ current_type(Type, Constructor) :-
 	qualify_type(Type, M:T),
 	current_type(T, M, Constructor).
 
-%%	subtype_of(:Type, Super) is nondet.
+%%	subtype_of(:Type, :Super) is nondet.
 %
 %	True if Type is a subtype of Super.
 %
@@ -89,7 +90,7 @@ expand_type((Type ---> Constructor), []) :-
 	instantiation_error(Constructor).
 expand_type((TypeSpec ---> Constructor),
 	    [ QTestClause,
-	      type_decl:current_type(Type, M, Constructor),
+	      type_decl:current_type(Type, Q, Constructor),
 	      (type_decl:type_constraint(Type, Q, X) :- ConstraintBody)
 	    | SubTypeClauses
 	    ]) :- !,
@@ -99,11 +100,11 @@ expand_type((TypeSpec ---> Constructor),
 	constraint_body(M:Type, Constructor, X, ConstraintBody),
 	qualify(M, Q, TestClause, QTestClause).
 expand_type(TypeSpec,
-	    [ type_decl:current_type(Type, M, primitive)
+	    [ type_decl:current_type(Type, Q, primitive)
 	    | SubTypeClauses
 	    ]) :-
 	prolog_load_context(module, M),
-	subtype_clauses(TypeSpec, M, _, Type, SubTypeClauses).
+	subtype_clauses(TypeSpec, M, Q, Type, SubTypeClauses).
 
 
 subtype_clauses(QType < Supers, M, Q, Type, SubTypeClauses) :- !,

@@ -4,7 +4,7 @@
 :- type system:atom.
 :- type system:number  < [system:atomic].
 :- type system:integer < [system:number].
-:- type system:float   < [system:float].
+:- type system:float   < [system:number].
 
 :- type system:list --->
 	(   []
