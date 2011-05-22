@@ -73,15 +73,14 @@ expand_type((Type ---> Constructor), []) :-
 expand_type((TypeSpec ---> Constructor),
 	    [ QTestClause,
 	      type_decl:current_type(Type, M, Constructor),
-	      (type_decl:type_constraint(Head, Q, X) :- ConstraintBody)
+	      (type_decl:type_constraint(Type, Q, X) :- ConstraintBody)
 	    | SubTypeClauses
 	    ]) :- !,
 	prolog_load_context(module, M),
 	subtype_clauses(TypeSpec, M, Q, Type, SubTypeClauses),
 	test_clause(Type, Constructor, TestClause),
 	constraint_body(M:Type, Constructor, X, ConstraintBody),
-	qualify(M, Q, TestClause, QTestClause),
-	extend(Type, X, Head).
+	qualify(M, Q, TestClause, QTestClause).
 expand_type(TypeSpec,
 	    [ type_decl:current_type(Type, M, primitive)
 	    | SubTypeClauses
