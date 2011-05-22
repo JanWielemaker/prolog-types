@@ -39,9 +39,18 @@ current_type(M:T, Constructor) :-
 %%	subtype_of(:Type, Super) is nondet.
 %
 %	True if Type is a subtype of Super.
+%
+%	@tbd	module inheritance of types.
 
+subtype_of(Type, Type).
 subtype_of(M:Type, Super) :-
-	subtype_of(Type, M, Super).
+	nonvar(Type), !,
+	subtype_of(Type, M, Parent),
+	subtype_of(Parent, Super).
+subtype_of(Type, SM:Super) :-
+	nonvar(Super),
+	subtype_of(Sub, SubM, SM:Super),
+	subtype_of(Type, SubM:Sub).
 
 
 %%	type(+Declaration)
@@ -67,7 +76,7 @@ expand_type((TypeSpec ---> Constructor),
 	      type_decl:current_type(Type, M, Constructor),
 	      type_decl:partial(Head, C, C:PartialHead)
 	    | SubTypeClauses
-	    ]) :-
+	    ]) :- !,
 	prolog_load_context(module, M),
 	subtype_clauses(TypeSpec, M, Q, Type, SubTypeClauses),
 	test_clause(Type, Constructor, TestClause),
@@ -76,6 +85,13 @@ expand_type((TypeSpec ---> Constructor),
 	qualify(M, Q, TestPartialClause, QTestPartialClause),
 	extend(Type, X, Head),
 	extend(partial_, Type, X, PartialHead).
+expand_type(TypeSpec,
+	    [ type_decl:current_type(Type, M, primitive)
+	    | SubTypeClauses
+	    ]) :-
+	prolog_load_context(module, M),
+	subtype_clauses(TypeSpec, M, _, Type, SubTypeClauses).
+
 
 subtype_clauses(QType < Supers, M, Q, Type, SubTypeClauses) :- !,
 	strip_module(M:QType, Q, Type),

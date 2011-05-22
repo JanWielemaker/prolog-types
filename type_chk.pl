@@ -19,7 +19,7 @@ variables.  It uses several attributes:
 
 check_clause((Head :- Body), M, Options) :-
 	variable_names(Options),
-	type_signature(M:Head),
+	signature(M:Head),
 	check_body(Body, M).
 
 
@@ -34,3 +34,23 @@ set_var_name(Name=Var) :-
 check_body((A,B), M) :- !,
 	check_body(A, M),
 	check_body(B, M).
+check_body(Goal, M) :-
+	body_signature(M:Goal).
+
+
+%%	(type):attr_unify_hook(Type, Val) is semidet.
+%
+%	Unification hook for the type constraint.
+
+(type):attr_unify_hook(Type, Val) :-
+	ground(Val), !,				% given value
+	call(Type, Val).
+(type):attr_unify_hook(Type, Val) :-
+	get_attr(Val, type, ValType), !,	% matching type
+	subtype_of(NewType, Type),
+	subtype_of(NewType, ValType),
+	put_attr(Val, type, NewType).
+(type):attr_unify_hook(Type, Val) :-		% partial value
+	assertion(compound(Val)),
+	partial_type_constraint(Type, Val).
+
