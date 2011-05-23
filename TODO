@@ -1,0 +1,17 @@
+---+ TODO List
+
+---++ Types
+
+ * Intersect atomic values
+   - Mostly, member constraint has wrong order.
+ * Intersect normal types
+   - common sub-terms
+ * Parameterized types (e.g. list(atomic) /\ list(atom)
+
+---+++ Type from concrete values?
+
+ * Value/functor table to enclosing types.
+
+---+++ Type aliases
+
+---++ Signatures

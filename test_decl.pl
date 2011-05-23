@@ -4,19 +4,34 @@
 :- type system:atomic.
 :- type system:compound.
 :- type system:atom    < [system:atomic].
+:- type system:string  < [system:atomic].
 :- type system:number  < [system:atomic].
 :- type system:integer < [system:number].
 :- type system:float   < [system:number].
 
-:- type system:list --->
-	(   []
-	;   [any|system:list]
-	).
+:- type system:list    ---> [] ; [any|system:list].
+:- type system:list(X) ---> [] ; [X|system:list(X)].
 
-:- type list(X) --->
-	(   []
-	;   [X|list(X)]
-	).
+%	text stuff
+
+system:char(X) :-
+	atom(X),
+	atom_length(X, 1).
+
+system:code(X) :-
+	integer(X),
+	between(0, 0x10ffff, X).		% Unicode range
+
+:- type system:char < [system:atom].
+:- type system:code < [system:integer].
+
+:- type system:codes = list:list(code).
+:- type system:chars = list:list(char).
+
+
+		 /*******************************
+		 *	       TESTS		*
+		 *******************************/
 
 :- begin_tests(types).
 

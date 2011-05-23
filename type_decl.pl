@@ -238,6 +238,8 @@ qtype_constraint(Type, Value) :-
 %
 %	T is a common subtype of T1 and T2. The findall and member is to
 %	provide early determinism.
+%
+%	@tbd	Remove subtypes of already present types
 
 common_subtype(T, T, T) :- !.
 common_subtype(T1, T2, T) :-
