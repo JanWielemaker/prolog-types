@@ -7,6 +7,7 @@
 	    op(1130, xfx, --->)
 	  ]).
 :- use_module(library(apply)).
+:- use_module(library(lists)).
 
 /* <module> Type declarations
 
@@ -253,22 +254,36 @@ gen_common_subtype(T1, T2, T) :-
 sub_atomic_general(T1, M:T2, T) :-
 	qsubtype_of(T1, system:atomic),
 	current_type(T2, M, Constructor),
-	findall(V, constructor_value(Constructor, V), Vs),
+	findall(V, constructor_value(Constructor, V), Vs0),
+	sort(Vs0, Vs),
 	Vs \== [],
 	(   Vs = [V]
-	->  T = =(V)
-	;   T = one_of(Vs)
+	->  T = system:(=(V))
+	;   T = lists:member(Vs)
 	).
 
 %%	(type):attr_unify_hook(Type, Val) is semidet.
 %
 %	Unification hook for the type constraint.
 
-(type):attr_unify_hook(=(Value), Val) :- !,
+(type):attr_unify_hook(system:(=(Value)), Val) :- !,
 	(   get_attr(Val, type, Type)
 	->  call(Type, Value)
 	;   nonvar(Val)
 	->  Val == Value
+	).
+(type):attr_unify_hook(lists:member(Set), Val) :- !,
+	(   get_attr(Val, type, Type)
+	->  (   Type = lists:member(Set2)
+	    ->	ord_intersection(Set, Set2, NewSet),
+		NewSet \== [],
+		put_attr(Val, type, lists:member(NewSet))
+	    ;	include(call(Type), Set, NewSet),
+		NewSet \== [],
+		put_attr(Val, type, lists:member(NewSet))
+	    )
+	;   nonvar(Val)
+	->  memberchk(Val, Set)
 	).
 (type):attr_unify_hook(Type, Val) :-
 	type_constraint(Type, Val).		% qtype_constraint?
