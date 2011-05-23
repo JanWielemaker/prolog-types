@@ -76,6 +76,7 @@ constructor_value((A;B), Value) :-
 	(   constructor_value(A, Value)
 	;   constructor_value(B, Value)
 	).
+constructor_value('$primitive', _) :- !, fail.
 constructor_value(Value, Value) :-
 	atomic(Value).
 
@@ -108,7 +109,7 @@ expand_type((TypeSpec ---> Constructor),
 	constraint_body(M:Type, Constructor, X, ConstraintBody),
 	qualify(M, Q, TestClause, QTestClause).
 expand_type(TypeSpec,
-	    [ type_decl:current_type(Type, Q, primitive)
+	    [ type_decl:current_type(Type, Q, '$primitive')
 	    | SubTypeClauses
 	    ]) :-
 	prolog_load_context(module, M),
