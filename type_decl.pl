@@ -210,7 +210,7 @@ qtype_constraint(Type, Var) :-
 	var(Var), !,
 	(   get_attr(Var, type, Type2)
 	->  common_subtype(Type, Type2, NewType),
-	    (	NewType == Type
+	    (	NewType == Type2
 	    ->	true
 	    ;	put_attr(Var, type, NewType)
 	    )

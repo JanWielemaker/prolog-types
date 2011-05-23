@@ -1,4 +1,5 @@
 :- use_module(type_decl).
+:- use_module(library(plunit)).
 
 :- type system:atomic.
 :- type system:atom    < [system:atomic].
@@ -16,3 +17,16 @@
 	;   [X|list(X)]
 	).
 
+:- begin_tests(types).
+
+test(hier, true) :-
+	type_constraint(atomic, X),
+	type_constraint(integer, X),
+	X = 3.
+test(hier, fail) :-
+	type_constraint(atomic, X),
+	type_constraint(integer, X),
+	X = a.
+
+
+:- end_tests(types).
