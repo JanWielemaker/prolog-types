@@ -24,16 +24,27 @@ This module deals with Hindley-Milner declations  of types.
 
 :- multifile
 	current_type/3,			% Type, Module, Constructor
-	subtype_of/3.			% Type, Module, Super
+	subtype_of/3,			% Type, Module, Super
+	type_alias/3.			% Type, Module, Alias
+
+%%	qualify_type(:Type, -QType) is det.
+%
+%	@tbd	Ok in mode (+,-), but not in other modes
+%	@tbd	Handling aliases here is dubious.
 
 qualify_type(M:Type, Q:Type) :-
 	(   var(Type)
 	->  Q = M
 	;   current_type(Type, M, _)
 	->  Q = M
+	;   type_alias(Type, M, Alias)
+	->  qualify_type(Alias, Q:Type)
 	;   extend(Type, _, Test),
 	    predicate_property(M:Test, imported_from(M2))
-	->  Q = M2
+	->  (   type_alias(Type, M2, Alias)
+	    ->	qualify_type(Alias, Q:Type)
+	    ;	Q = M2
+	    )
 	;   Q = M
 	).
 
@@ -108,6 +119,15 @@ expand_type((TypeSpec ---> Constructor),
 	test_clause(Type, Constructor, TestClause),
 	constraint_body(M:Type, Constructor, X, ConstraintBody),
 	qualify(M, Q, TestClause, QTestClause).
+expand_type(MAlias = MType,
+	    [ type_decl:type_alias(Alias, QA, QT:QType),
+	      (AliasHead :- TypeHead)
+	    ]) :- !,
+	prolog_load_context(module, M),
+	strip_module(M:MAlias, QA, Alias),
+	strip_module(M:MType, QT, QType),
+	extend(QA:Alias, X, AliasHead),
+	extend(QT:QType, X, TypeHead).
 expand_type(TypeSpec,
 	    [ type_decl:current_type(Type, Q, '$primitive')
 	    | SubTypeClauses

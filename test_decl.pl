@@ -25,8 +25,8 @@ system:code(X) :-
 :- type system:char < [system:atom].
 :- type system:code < [system:integer].
 
-:- type system:codes = list:list(code).
-:- type system:chars = list:list(char).
+:- type system:codes = system:list(code).
+:- type system:chars = system:list(char).
 
 
 		 /*******************************
