@@ -1,21 +1,16 @@
 :- module(type_decl,
 	  [ (type)/1,			% +Declaration
-	    (pred)/1,			% +Signature
 	    current_type/2,		% :Name, ?Definition
 	    subtype_of/2,		% T1, T2
 	    type_constraint/2,		% +Type, +Value
 	    op(1150, fx, type),
-	    op(1130, xfx, --->),
-	    op(1150, fx, pred),		% signature declaration
-	    op(200, fy, ?),		% argument mode
-	    op(200, fy, @)		% argument mode
+	    op(1130, xfx, --->)
 	  ]).
 :- use_module(library(apply)).
 
 /* <module> Type declarations
 
-This module deals with Hindley-Milner declations  of types and predicate
-signatures.
+This module deals with Hindley-Milner declations  of types.
 
 @tbd	Implement empty types
 @tbd	Implement (a;b;c) as type argument
@@ -244,15 +239,6 @@ common_subtype(T1, T2, T) :-
 (type):attribute_goals(Var) -->
 	{ get_attr(Var, type, Type) },
 	[ type_constraint(Type, Var) ].
-
-%%	pred(+Signature)
-%
-%	This directive provides a type,   mode and determinism signature
-%	for the given Signature.
-
-pred(Signature) :-
-	throw(error(context_error(nodirective, pred(Signature)), _)).
-
 
 		 /*******************************
 		 *	       UTIL		*

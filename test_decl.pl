@@ -2,6 +2,7 @@
 :- use_module(library(plunit)).
 
 :- type system:atomic.
+:- type system:compound.
 :- type system:atom    < [system:atomic].
 :- type system:number  < [system:atomic].
 :- type system:integer < [system:number].
@@ -27,6 +28,5 @@ test(hier, fail) :-
 	type_constraint(atomic, X),
 	type_constraint(integer, X),
 	X = a.
-
 
 :- end_tests(types).

@@ -6,12 +6,26 @@ Docs: https://lirias.kuleuven.be/bitstream/123456789/197561/1/shorticlp08.pdf
 
   * Allow exporting types and provide visibility of types silimar to
     predicates and operators.
-  * Have predicates
-    - <type>(X)
-    Should apply to input arguments (mode -)
-    - <partial_type>(X)
-    Should apply to output and mixed arguments (+,?)
+
+  * Access predicates:
+    - <type>(X) is semidet.
+    - type_constraint(:Type, X)
+
   * A type hierarchy as a multiple-inheritance hierarchy.
+
+  * Interesting challenges:
+
+	type_constraint(atom, X),
+	type_constraint(list, X)
+		--> X = []
+
+	type_constraint(compound, X),
+	type_constraint(list, X)
+		--> X = [_|T], type_constraint(list, T).
+
+	- Atomic types: see whether type decl has actual values that
+	  match.  Then, replace by eq-constraint?
+	- Compound:
 
 ---+++ Hindley-Milner types
 
@@ -46,8 +60,6 @@ Docs: https://lirias.kuleuven.be/bitstream/123456789/197561/1/shorticlp08.pdf
   :- type number < [atomic].
   :- type stream.
   ==
-
-
 
 
 
