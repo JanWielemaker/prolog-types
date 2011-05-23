@@ -209,11 +209,10 @@ type_constraint(Type, Value) :-
 qtype_constraint(Type, Var) :-
 	var(Var), !,
 	(   get_attr(Var, type, Type2)
-	->  (   Type2 \== Type
-	    ->	qsubtype_of(NewType, Type),
-		qsubtype_of(NewType, Type2),
-		put_attr(Var, type, NewType)
-	    ;	true
+	->  common_subtype(Type, Type2, NewType),
+	    (	NewType == Type
+	    ->	true
+	    ;	put_attr(Var, type, NewType)
 	    )
 	;   put_attr(Var, type, Type)
 	).
@@ -222,6 +221,18 @@ qtype_constraint(M:Type, Value) :-
 	type_constraint(Type, M, Value).
 qtype_constraint(Type, Value) :-
 	call(Type, Value).
+
+%%	common_subtype(+T1, +T2, -T) is nondet.
+%
+%	T is a common subtype of T1 and T2. The findall and member is to
+%	provide early determinism.
+
+common_subtype(T, T, T) :- !.
+common_subtype(T1, T2, T) :-
+	findall(T, (qsubtype_of(T, T1),
+		    qsubtype_of(T, T2)),
+		TL),
+	member(T, TL).
 
 %%	(type):attr_unify_hook(Type, Val) is semidet.
 %
