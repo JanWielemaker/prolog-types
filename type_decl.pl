@@ -66,6 +66,18 @@ qsubtype_of(Type, Super) :-
 	subtype_of(Sub, SubM, Super),
 	qsubtype_of(Type, SubM:Sub).
 
+%%	constructor_value(+Constructor, -Value) is nondet.
+%
+%	Value is a concrete value that   appears in Constructor. Used to
+%	combine hard values and finding common subtypes.
+
+constructor_value((A;B), Value) :-
+	(   constructor_value(A, Value)
+	;   constructor_value(B, Value)
+	).
+constructor_value(Value, Value) :-
+	atomic(Value).
+
 
 %%	type(+Declaration)
 %
@@ -116,7 +128,10 @@ qualify(M, M, G, G) :- !.
 qualify(_, Q, G, Q:G).
 
 
-%%	test_clause(+Type, +TypeConstructor, -Body) is det.
+%%	test_clause(+Type, +TypeConstructor, -Clause) is det.
+%
+%	Clause is a semidet  unary  predicate   that  tests  that a term
+%	satisfies Type.
 
 test_clause(Type, Constructor, (Head :- Body)) :-
 	extend(Type, X, Head),
@@ -224,20 +239,45 @@ qtype_constraint(Type, Value) :-
 
 common_subtype(T, T, T) :- !.
 common_subtype(T1, T2, T) :-
-	findall(T, (qsubtype_of(T, T1),
-		    qsubtype_of(T, T2)),
-		TL),
+	findall(T, gen_common_subtype(T1,T2,T), TL),
 	member(T, TL).
+
+gen_common_subtype(T1, T2, T) :-
+	qsubtype_of(T, T1),
+	qsubtype_of(T, T2).
+gen_common_subtype(T1, T2, T) :-
+	(   sub_atomic_general(T1, T2, T)
+	;   sub_atomic_general(T2, T1, T)
+	).
+
+sub_atomic_general(T1, M:T2, T) :-
+	qsubtype_of(T1, system:atomic),
+	current_type(T2, M, Constructor),
+	findall(V, constructor_value(Constructor, V), Vs),
+	Vs \== [],
+	(   Vs = [V]
+	->  T = =(V)
+	;   T = one_of(Vs)
+	).
 
 %%	(type):attr_unify_hook(Type, Val) is semidet.
 %
 %	Unification hook for the type constraint.
 
+(type):attr_unify_hook(=(Value), Val) :- !,
+	(   get_attr(Val, type, Type)
+	->  call(Type, Value)
+	;   nonvar(Val)
+	->  Val == Value
+	).
 (type):attr_unify_hook(Type, Val) :-
-	type_constraint(Type, Val).
+	type_constraint(Type, Val).		% qtype_constraint?
 
 (type):attribute_goals(Var) -->
 	{ get_attr(Var, type, Type) },
+	type_goals(Type, Var).
+
+type_goals(Type, Var) -->
 	[ type_constraint(Type, Var) ].
 
 		 /*******************************
