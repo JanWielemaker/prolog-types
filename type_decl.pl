@@ -31,7 +31,20 @@ This module deals with Hindley-Milner declations  of types.
 %	@tbd	Ok in mode (+,-), but not in other modes
 %	@tbd	Handling aliases here is dubious.
 
-qualify_type(M:Type, Q:TypeOut) :-
+qualify_type(M0:Type0, M:Type) :-
+	qualify_outer_type(M0:Type0, M:Type1),
+	(   functor(Type1, F, Arity), Arity>0
+	->  Type1 =.. [F|A1],
+	    maplist(qualify_type(M0), A1, A),
+	    Type  =.. [F|A]
+	;   Type = Type1
+	).
+
+qualify_type(M0, Type0, Type) :-
+	strip_module(M0:Type0, M1, Type1),
+	qualify_type(M1:Type1, Type).
+
+qualify_outer_type(M:Type, Q:TypeOut) :-
 	(   var(Type)
 	->  Q = M, TypeOut = Type
 	;   current_type(Type, M, _)
