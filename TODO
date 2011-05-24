@@ -6,7 +6,7 @@
    - Mostly, member constraint has wrong order.
  * Intersect normal types
    - common sub-terms
- * Parameterized types (e.g. list(atomic) /\ list(atom)
+ * Parameterized types (e.g. list(atomic) /\ list(atom)		[OK]
 
 ---+++ Type from concrete values?
 

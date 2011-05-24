@@ -268,6 +268,14 @@ common_subtype(T1, T2, T) :-
 gen_common_subtype(T1, T2, T) :-
 	qsubtype_of(T, T1),
 	qsubtype_of(T, T2).
+gen_common_subtype(M:T1, M:T2, M:T) :-
+	functor(T1, F, A),
+	functor(T2, F, A),
+	A > 0,
+	T1 =.. [_|TA1],
+	T2 =.. [_|TA2],
+	maplist(gen_common_subtype, TA1, TA2, TA),
+	T =.. [F|TA].
 gen_common_subtype(T1, T2, T) :-
 	(   sub_atomic_general(T1, T2, T)
 	;   sub_atomic_general(T2, T1, T)
