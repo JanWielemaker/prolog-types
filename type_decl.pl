@@ -2,6 +2,7 @@
 	  [ (type)/1,			% +Declaration
 	    current_type/2,		% :Name, ?Definition
 	    subtype_of/2,		% T1, T2
+	    resolve_type/2,		% :TypeIn, :TypeOut
 	    type_constraint/2,		% +Type, +Value
 	    op(1150, fx, type),
 	    op(1130, xfx, --->)
@@ -19,30 +20,31 @@ This module deals with Hindley-Milner declations  of types.
 
 :- meta_predicate
 	current_type(:, ?),
-	subtype_of(:, :).
+	subtype_of(:, :),
+	resolve_type(:, :).
 
 :- multifile
 	current_type/3,			% Type, Module, Constructor
 	subtype_of/3,			% Type, Module, Super
 	type_alias/3.			% Type, Module, Alias
 
-%%	qualify_type(:Type, -QType) is det.
+%%	resolve_type(:Type, -QType) is det.
 %
 %	@tbd	Ok in mode (+,-), but not in other modes
 %	@tbd	Handling aliases here is dubious.
 
-qualify_type(M0:Type0, M:Type) :-
+resolve_type(M0:Type0, M:Type) :-
 	qualify_outer_type(M0:Type0, M:Type1),
 	(   functor(Type1, F, Arity), Arity>0
 	->  Type1 =.. [F|A1],
-	    maplist(qualify_type(M0), A1, A),
+	    maplist(resolve_type(M0), A1, A),
 	    Type  =.. [F|A]
 	;   Type = Type1
 	).
 
-qualify_type(M0, Type0, Type) :-
+resolve_type(M0, Type0, Type) :-
 	strip_module(M0:Type0, M1, Type1),
-	qualify_type(M1:Type1, Type).
+	resolve_type(M1:Type1, Type).
 
 qualify_outer_type(M:Type, Q:TypeOut) :-
 	(   var(Type)
@@ -50,11 +52,11 @@ qualify_outer_type(M:Type, Q:TypeOut) :-
 	;   current_type(Type, M, _)
 	->  Q = M, TypeOut = Type
 	;   type_alias(Type, M, Alias)
-	->  qualify_type(Alias, Q:TypeOut)
+	->  resolve_type(Alias, Q:TypeOut)
 	;   extend(Type, _, Test),
 	    predicate_property(M:Test, imported_from(M2))
 	->  (   type_alias(Type, M2, Alias)
-	    ->	qualify_type(Alias, Q:TypeOut)
+	    ->	resolve_type(Alias, Q:TypeOut)
 	    ;	Q = M2, TypeOut = Type
 	    )
 	;   Q = M, TypeOut = Type
@@ -66,7 +68,7 @@ qualify_outer_type(M:Type, Q:TypeOut) :-
 %	Constructor.
 
 current_type(Type, Constructor) :-
-	qualify_type(Type, M:T),
+	resolve_type(Type, M:T),
 	current_type(T, M, Constructor).
 
 %%	subtype_of(:Type, :Super) is nondet.
@@ -76,8 +78,8 @@ current_type(Type, Constructor) :-
 %	@tbd	module inheritance of types.
 
 subtype_of(Sub, Super) :-
-	qualify_type(Sub, QSub),
-	qualify_type(Super, QSuper),
+	resolve_type(Sub, QSub),
+	resolve_type(Super, QSuper),
 	qsubtype_of(QSub, QSuper).
 
 qsubtype_of(Type, Type).
@@ -247,7 +249,7 @@ constraint_type_arg(M, Type, X, Call) :-
 %	variable(s) that establish the type relation.
 
 type_constraint(Type, Value) :-
-	qualify_type(Type, QType),
+	resolve_type(Type, QType),
 	qtype_constraint(QType, Value).
 
 qtype_constraint(Type, Var) :-

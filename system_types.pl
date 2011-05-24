@@ -39,10 +39,10 @@
 	;   numbervars(system:boolean)
 	;   partial(system:boolean)
 	;   portray(system:boolean)
-	;   portray_goal(pred(any,list(write_option)))
+	;   portray_goal(pred(any,list(system:write_option)))
 	;   priority(system:integer)
 	;   quoted(system:boolean)
-	;   spacing((standard,next_argument))
+	;   spacing((standard;next_argument))
 	).
 
 

@@ -11,9 +11,9 @@
 ---+++ Type from concrete values?
 
  * Value/functor table to enclosing types.
+ * type_constraint(:Type, +Value)?
 
----+++ Type aliases
-
+---+++ Type aliases						[OK]
 
 ---++ Signatures
 

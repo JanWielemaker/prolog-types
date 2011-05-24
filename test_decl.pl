@@ -12,6 +12,8 @@
 :- type system:list    ---> [] ; [any|system:list].
 :- type system:list(X) ---> [] ; [X|system:list(X)].
 
+:- type system:boolean < [system:atom] ---> true ; false.
+
 %	text stuff
 
 system:char(X) :-
