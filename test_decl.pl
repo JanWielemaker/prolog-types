@@ -3,16 +3,23 @@
 
 :- type system:atomic.
 :- type system:compound.
+:- type system:stream.
 :- type system:atom    < [system:atomic].
 :- type system:string  < [system:atomic].
 :- type system:number  < [system:atomic].
 :- type system:integer < [system:number].
 :- type system:float   < [system:number].
+:- type system:input_stream < [stream].
+:- type system:output_stream < [stream].
 
 :- type system:list    ---> [] ; [any|system:list].
 :- type system:list(X) ---> [] ; [X|system:list(X)].
 
 :- type system:boolean < [system:atom] ---> true ; false.
+
+system:stream(X) :- is_stream(X).
+system:input_stream(X) :- is_stream(X), stream_property(X, input).
+system:output_stream(X) :- is_stream(X), stream_property(X, output).
 
 %	text stuff
 
