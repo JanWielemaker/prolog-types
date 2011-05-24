@@ -13,7 +13,6 @@
 
 This module deals with Hindley-Milner declations  of types.
 
-@tbd	Implement empty types
 @tbd	Implement (a;b;c) as type argument
 @tbd	Implement pred(ClosureArgs) as type argument
 */
@@ -32,20 +31,20 @@ This module deals with Hindley-Milner declations  of types.
 %	@tbd	Ok in mode (+,-), but not in other modes
 %	@tbd	Handling aliases here is dubious.
 
-qualify_type(M:Type, Q:Type) :-
+qualify_type(M:Type, Q:TypeOut) :-
 	(   var(Type)
-	->  Q = M
+	->  Q = M, TypeOut = Type
 	;   current_type(Type, M, _)
-	->  Q = M
+	->  Q = M, TypeOut = Type
 	;   type_alias(Type, M, Alias)
-	->  qualify_type(Alias, Q:Type)
+	->  qualify_type(Alias, Q:TypeOut)
 	;   extend(Type, _, Test),
 	    predicate_property(M:Test, imported_from(M2))
 	->  (   type_alias(Type, M2, Alias)
-	    ->	qualify_type(Alias, Q:Type)
-	    ;	Q = M2
+	    ->	qualify_type(Alias, Q:TypeOut)
+	    ;	Q = M2, TypeOut = Type
 	    )
-	;   Q = M
+	;   Q = M, TypeOut = Type
 	).
 
 %%	current_type(:Type, ?Constructor) is nondet.
