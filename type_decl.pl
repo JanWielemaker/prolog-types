@@ -262,6 +262,7 @@ qtype_constraint(Type, Var) :-
 	    )
 	;   put_attr(Var, type, Type)
 	).
+qtype_constraint(system:any, _) :- !.
 qtype_constraint(M:Type, Value) :-
 	compound(Value), !,
 	type_constraint(Type, M, Value).

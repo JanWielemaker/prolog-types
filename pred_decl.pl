@@ -4,7 +4,8 @@
 	    goal_signature/2,		% :Goal, -Det
 	    head_signature/2,		% :Goal, -Det
 	    op(1150, fx, pred),		% signature declaration
-	    op(200, fy, --),		% argument mode
+	    op(200, fy, --),		% argument mode: must be unbound
+	    op(200, fy, ++),		% argument mode: must be ground
 	    op(200, fy, ?),		% argument mode
 	    op(200, fy, @)		% argument mode
 	  ]).
@@ -71,11 +72,16 @@ mode_arg(M, Type0, mode(?,Q:Type)) :-
 	resolve_type(M1:Type1, Q:Type).
 
 mode_specifier( +(Type),  +, Type).
+mode_specifier(++(Type), ++, Type).
 mode_specifier( -(Type),  -, Type).
 mode_specifier(--(Type), --, Type).
 mode_specifier( @(Type),  @, Type).
 mode_specifier( ?(Type),  ?, Type).
 
+
+		 /*******************************
+		 *	     SIGNATURES		*
+		 *******************************/
 
 %%	signature(:Goal, -Arguments, -Det) is nondet.
 %
@@ -107,16 +113,20 @@ head_signature(M:Goal, Det) :-
 head_arg(mode(I,T), GoalArg) :-
 	head_arg(I, T, GoalArg).
 
+head_arg(++, Type, GoalArg) :- !,
+	type_constraint(Type, GoalArg),
+	term_variables(GoalArg, AttVars),
+	maplist(set_instantated(ground), AttVars).
 head_arg(+, Type, GoalArg) :- !,
 	type_constraint(Type, GoalArg),
 	term_attvars(GoalArg, AttVars),
-	maplist(set_instantated, AttVars).
+	maplist(set_instantated(type), AttVars).
+head_arg(--, Type, GoalArg) :- !,
+	type_constraint(Type, GoalArg),
+	var(GoalArg),
+	set_instantated(unbound, GoalArg).
 head_arg(_, Type, GoalArg) :-
 	type_constraint(Type, GoalArg).
-
-set_instantated(Var) :-
-	put_attr(Var, instantiated, true).
-
 
 %%	goal_signature(:Goal, -Det) is nondet.
 %
@@ -128,16 +138,31 @@ goal_signature(M:Goal, Det) :-
 	Goal =.. [_|GoalArgs],
 	maplist(goal_arg, Arguments, GoalArgs).
 
-goal_arg(mode(I,T), GoalArg) :-
-	goal_arg(I, T, GoalArg).
-
-goal_arg(_, Type, GoalArg) :-
-	type_constraint(Type, GoalArg).
-
+goal_arg(mode(I,Type), GoalArg) :-
+	instantiated_call(I, GoalArg),
+	type_constraint(Type, GoalArg),
+	instantiated_exit(I, GoalArg).
 
 		 /*******************************
 		 *	       MODES		*
 		 *******************************/
+
+instantiated_call(++, GoalArg) :- !,
+	get_attr(GoalArg, instantiated, ground).
+instantiated_call(+, GoalArg) :- !,
+	get_attr(GoalArg, instantiated, type).
+instantiated_call(--, GoalArg) :-
+	\+ get_attr(GoalArg, instantiated, _).
+instantiated_call(_, _).
+
+instantiated_exit(++, _) :- !.
+instantiated_exit(+, _) :- !.
+instantiated_exit(@, _) :- !.
+instantiated_exit(_, GoalArg) :-
+	set_instantated(type, GoalArg).
+
+set_instantated(How, Var) :-
+	put_attr(Var, instantiated, How).
 
 
 		 /*******************************
