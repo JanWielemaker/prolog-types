@@ -10,12 +10,11 @@
 :- type system:integer < [system:number].
 :- type system:float   < [system:number].
 
-:- type system:stream_or_alias.
+:- type system:stream.
 :- type system:source_sink.
-:- type system:stream  < [stream_or_alias].
-:- type system:atom    < [stream_or_alias].
-:- type system:input_stream_or_alias  < [stream_or_alias].
-:- type system:output_stream_or_alias < [stream_or_alias].
+:- type system:input_stream   < [stream].
+:- type system:output_stream  < [stream].
+
 
 :- type system:list    ---> [] ; [any|system:list].
 :- type system:list(X) ---> [] ; [X|system:list(X)].
