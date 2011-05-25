@@ -1,6 +1,8 @@
 :- module(pred_decl,
 	  [ (pred)/1,			% +Signature
-	    signature/2,		% ?Signature, -Det
+	    signature/3,		% :Goal, -ModeTypeList, -Det
+	    goal_signature/2,		% :Goal, -Det
+	    head_signature/2,		% :Goal, -Det
 	    op(1150, fx, pred),		% signature declaration
 	    op(200, fy, --),		% argument mode
 	    op(200, fy, ?),		% argument mode
@@ -29,7 +31,9 @@ Mode proposal
 	current_signature/4.
 
 :- meta_predicate
-	signature(:,-).
+	signature(:,-,-),
+	head_signature(:,-),
+	goal_signature(:,-).
 
 %%	pred(+Signature)
 %
@@ -73,27 +77,81 @@ mode_specifier( @(Type),  @, Type).
 mode_specifier( ?(Type),  ?, Type).
 
 
-%%	signature(:Goal, -Det) is nondet.
+%%	signature(:Goal, -Arguments, -Det) is nondet.
 %
-%	Signature is a current  mode+type   signature  with  determinism
-%	information for Goal.  Goal may be partially instantiated.
+%	True if Arguments provide the   moded argument specification for
+%	Goal and Det is the determinism   indicator.  Note that any gaol
+%	may have 0 or more signatures.
 
-signature(M:Goal, Det) :-
+signature(M:Goal, Arguments, Det) :-
 	functor(Goal, F, A),
 	functor(Gen, F, A),
 	(   predicate_property(M:Goal, imported_from(Q))
 	->  true
 	;   Q = M
 	),
-	current_signature(Gen, Q, Arguments, Det),
-	Goal =.. [F|GoalArgs],
-	maplist(signature_arg, Arguments, GoalArgs).
+	current_signature(Gen, Q, Arguments, Det).
 
-signature_arg(mode(I,T), GoalArg) :-
-	signature_arg(I, T, GoalArg).
 
-signature_arg(_, Type, GoalArg) :-
+%%	head_signature(:Goal, -Det) is nondet.
+%
+%	This predicate uses the signature declaration on the clause-head
+%	to establish the constraints and modes   for  the head variables
+%	and provides the determinism information about the predicate.
+
+head_signature(M:Goal, Det) :-
+	signature(M:Goal, Arguments, Det),
+	Goal =.. [_|GoalArgs],
+	maplist(head_arg, Arguments, GoalArgs).
+
+head_arg(mode(I,T), GoalArg) :-
+	head_arg(I, T, GoalArg).
+
+head_arg(+, Type, GoalArg) :- !,
+	type_constraint(Type, GoalArg),
+	term_attvars(GoalArg, AttVars),
+	maplist(set_instantated, AttVars).
+head_arg(_, Type, GoalArg) :-
 	type_constraint(Type, GoalArg).
+
+set_instantated(Var) :-
+	put_attr(Var, instantiated, true).
+
+
+%%	goal_signature(:Goal, -Det) is nondet.
+%
+%	Signature is a current  mode+type   signature  with  determinism
+%	information for Goal.  Goal may be partially instantiated.
+
+goal_signature(M:Goal, Det) :-
+	signature(M:Goal, Arguments, Det),
+	Goal =.. [_|GoalArgs],
+	maplist(goal_arg, Arguments, GoalArgs).
+
+goal_arg(mode(I,T), GoalArg) :-
+	goal_arg(I, T, GoalArg).
+
+goal_arg(_, Type, GoalArg) :-
+	type_constraint(Type, GoalArg).
+
+
+		 /*******************************
+		 *	       MODES		*
+		 *******************************/
+
+
+		 /*******************************
+		 *	    DETERMINISM		*
+		 *******************************/
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+The idea is to handle determinism as  a constraint variable. This allows
+for using destructive assignment.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+
+
+
 
 
 		 /*******************************
