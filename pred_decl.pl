@@ -16,7 +16,7 @@
 Mode proposal
 
     $ +(Type) :
-    Argument satifies Type at entrance.
+    Argument satifies Type at call.
     $ -(Type) :
     Argument satisfies Type at exit.  Argument is steadfast.
     $ ?(Type) :
@@ -26,6 +26,8 @@ Mode proposal
     $ @(Type) :
     Argument is not touched, but Argument satisfies Type at exit.  This
     is used for type-checks.
+    $ invalidate(Type)
+    Argument must be of Type at call and may not be accessed afterwards.
 */
 
 :- multifile
@@ -75,8 +77,10 @@ mode_specifier( +(Type),  +, Type).
 mode_specifier(++(Type), ++, Type).
 mode_specifier( -(Type),  -, Type).
 mode_specifier(--(Type), --, Type).
-mode_specifier( @(Type),  @, Type).
 mode_specifier( ?(Type),  ?, Type).
+mode_specifier( @(Type),  @, Type).
+mode_specifier(invalidate(Type), invalidate, Type).
+
 
 
 		 /*******************************
@@ -183,6 +187,8 @@ instantiated_call(+, Type, GoalArg) :- !,
 	    )
 	;   call(Type, GoalArg)
 	).
+instantiated_call(invalidate, Type, GoalArg) :- !,
+	instantiated_call(+, Type, GoalArg).
 instantiated_call(--, _, GoalArg) :-
 	(   get_attr(GoalArg, instantiated, argument)
 	->  put_attr(GoalArg, instantiated, unbound)
@@ -194,8 +200,11 @@ instantiated_call(_, _, _).
 instantiated_exit(++, _) :- !.
 instantiated_exit(+, _) :- !.
 instantiated_exit(@, _) :- !.
+instantiated_exit(invalidate, GoalArg) :- !,
+	set_instantated(invalid, GoalArg).
 instantiated_exit(_, GoalArg) :-
-	set_instantated(type, GoalArg).
+	term_attvars(GoalArg, AttVars),
+	maplist(set_instantated(type), AttVars).
 
 set_instantated(How, Var) :-
 	put_attr(Var, instantiated, How).

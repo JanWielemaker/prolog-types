@@ -10,21 +10,47 @@
 :- pred system:open(++any, +write_mode, -output_stream) is det.
 :- pred system:read(+input_stream, -any) is det.
 :- pred system:write(+output_stream, -any) is det.
-:- pred system:close(+stream) is det.
+:- pred system:close(invalidate(stream)) is det.
 
-:- pred system:true is det.
+:- pred system:atom(@atom) is det.		% Base on current_type
+:- pred system:atom(@any)  is fail.
+
+:- pred system:true  is det.
+:- pred system:fail  is fail.
+:- pred system:false is fail.
+
+:- pred system:atom_codes(+atom, -codes) is det.
+:- pred system:atom_codes(-atom, +codes) is det.
+:- pred system:number_codes(+number, -codes) is det.
+:- pred system:number_codes(-number, +codes) is det.
 
 
 		 /*******************************
 		 *	     PlAYGROUND		*
 		 *******************************/
 
-%:- pred test(++any, -any) is det.
+%:- pred t1(++any, -any) is det.
 
-test(library(In), Term) :-
+t1(library(In), Term) :-
 	open(In, read, Stream),
 	read(Stream, Term),
 	close(Stream).
+
+%:- pred to_codes(+any, -codes) is semidet.
+
+to_codes(In, Out) :-
+	atom(In),
+	atom_codes(In, Out).
+
+:- pred atomic_codes(+atomic, -codes) is det.
+
+atomic_codes(In, Out) :-
+	atom(In), !,
+	atom_codes(In, Out).
+atomic_codes(In, Out) :-
+	number_codes(In, Out).
+
+
 
 :- meta_predicate
 	check(:, -).
@@ -38,8 +64,8 @@ check(M:Head, Det) :-
 	->  true
 	;   Q = M
 	),
-	clause(QHead, Body),
-	head_signature(QHead, _Det),
+	clause(Q:Head, Body),
+	head_signature(Q:Head, _Det),
 	check_body(Body, Q, Det).
 
 %%	check_body(+Goal, +Module, -Determinism) is nondet.
@@ -50,8 +76,11 @@ check(M:Head, Det) :-
 
 check_body((A,B), M, Det) :- !,
 	check_body(A, M, DetA),
-	check_body(B, M, DetB),
-	det_conj(DetA, DetB, Det).
+	(   DetA == fail
+	->  Det = DetA
+	;   check_body(B, M, DetB),
+	    det_conj(DetA, DetB, Det)
+	).
 check_body(!, _, Det) :- !,
 	Det = cut.
 check_body(A, M, Det) :-
