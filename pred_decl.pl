@@ -2,6 +2,7 @@
 	  [ (pred)/1,			% +Signature
 	    signature/2,		% ?Signature, -Det
 	    op(1150, fx, pred),		% signature declaration
+	    op(200, fy, --),		% argument mode
 	    op(200, fy, ?),		% argument mode
 	    op(200, fy, @)		% argument mode
 	  ]).
@@ -15,6 +16,8 @@ Mode proposal
     Argument satifies Type at entrance.
     $ -(Type) :
     Argument satisfies Type at exit.  Argument is steadfast.
+    $ ?(Type) :
+    Unknown.  May do anything but argument satisfies Type at exit.
     $ --(Type) :
     Argument satisfies Type at exit.  Argument must be unbound at entry.
     $ @(Type) :
@@ -63,10 +66,11 @@ mode_arg(M, Type0, mode(?,Q:Type)) :-
 	strip_module(M:Type0, M1, Type1),
 	resolve_type(M1:Type1, Q:Type).
 
-mode_specifier(+(Type), +, Type).
-mode_specifier(-(Type), -, Type).
-mode_specifier(@(Type), @, Type).
-mode_specifier(?(Type), ?, Type).
+mode_specifier( +(Type),  +, Type).
+mode_specifier( -(Type),  -, Type).
+mode_specifier(--(Type), --, Type).
+mode_specifier( @(Type),  @, Type).
+mode_specifier( ?(Type),  ?, Type).
 
 
 %%	signature(:Goal, -Det) is nondet.
@@ -88,8 +92,6 @@ signature(M:Goal, Det) :-
 signature_arg(mode(I,T), GoalArg) :-
 	signature_arg(I, T, GoalArg).
 
-signature_arg(+, Type, GoalArg) :- !,
-	call(Type, GoalArg).
 signature_arg(_, Type, GoalArg) :-
 	type_constraint(Type, GoalArg).
 

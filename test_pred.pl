@@ -1,6 +1,7 @@
-:- [test_decl].
 :- use_module(type_decl).
 :- use_module(pred_decl).
+
+:- [test_decl].
 
 :- type system:read_mode ---> read.
 :- type system:write_mode ---> write ; append ; update.
