@@ -12,6 +12,8 @@
 :- pred system:write(+output_stream, -any) is det.
 :- pred system:close(+stream) is det.
 
+:- pred system:true is det.
+
 
 		 /*******************************
 		 *	     PlAYGROUND		*
@@ -25,21 +27,38 @@ test(library(In), Term) :-
 	close(Stream).
 
 :- meta_predicate
-	check(:).
+	check(:, -).
 
-check(Head, Det) :-
-	clause(Head, Body),
-	head_signature(Head, _Det),
-	check_body(Body, Det).
+%%	check(:Goal, Det) is nondet.
+%
+%	Check type, mode and determinism for Goal.
 
-check_body((A,B), Det) :- !,
-	check_body(A, DetA),
-	check_body(B, DetB),
+check(M:Head, Det) :-
+	(   predicate_property(M:Head, imported_from(Q))
+	->  true
+	;   Q = M
+	),
+	clause(QHead, Body),
+	head_signature(QHead, _Det),
+	check_body(Body, Q, Det).
+
+%%	check_body(+Goal, +Module, -Determinism) is nondet.
+%
+%	@tbd	Deal with cycles. Something is a cycle if we find the
+%		same goal with the same argument types, but I fear it
+%		is not that simple.
+
+check_body((A,B), M, Det) :- !,
+	check_body(A, M, DetA),
+	check_body(B, M, DetB),
 	det_conj(DetA, DetB, Det).
-check_body(!, Det) :- !,
+check_body(!, _, Det) :- !,
 	Det = cut.
-check_body(A, Det) :-
-	goal_signature(A, Det).
+check_body(A, M, Det) :-
+	(   goal_signature(M:A, Det)
+	*-> true
+	;   existence_error(pred, M:A)		% TBD: Partial evaluation
+	).
 
 
 det_conj(_,	  cut,	   cut) :- !.
