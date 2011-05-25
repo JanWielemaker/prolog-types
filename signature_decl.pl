@@ -14,6 +14,9 @@
 :- multifile
 	current_signature/4.
 
+:- meta_predicate
+	signature(:,-).
+
 %%	pred(+Signature)
 %
 %	This directive provides a type,   mode and determinism signature
@@ -25,14 +28,14 @@ pred(Signature) :-
 pred_clauses((A,B), M) --> !,
 	pred_clauses(A, M),
 	pred_clauses(B, M).
-pred_clauses(A, M) -->
-	[ current_signature(Gen, Q, Arguments, Det) ],
-	{ strip_module(M:A, Q, G),
-	  pred_clause(G, Q, Gen, Arguments, Det)
+pred_clauses(G, M) -->
+	[ signature_decl:current_signature(Gen, Q, Arguments, Det) ],
+	{ pred_clause(G, M, Q, Gen, Arguments, Det)
 	}.
 
-pred_clause(GoalDet, M, Gen, Arguments, Det) :- !,
-	goal_det(GoalDet, Goal, Det),
+pred_clause(GoalDet, M, Q, Gen, Arguments, Det) :- !,
+	goal_det(GoalDet, MGoal, Det),
+	strip_module(M:MGoal, Q, Goal),
 	functor(Goal, F, A),
 	functor(Gen, F, A),
 	Goal =.. [F|Args],
@@ -41,13 +44,13 @@ pred_clause(GoalDet, M, Gen, Arguments, Det) :- !,
 goal_det(Goal is Det, Goal, Det) :- !.
 goal_det(Goal,        Goal, nondet).		% Or unknown/var?
 
-mode_arg(M, Spec, mode(I,Type)) :-
+mode_arg(M, Spec, mode(I,Q:Type)) :-
 	mode_specifier(Spec, I, Type0), !,
 	strip_module(M:Type0, M1, Type1),
-	resolve_type(M1:Type1, Type).
-mode_arg(M, Type0, mode(?,Type)) :-
+	resolve_type(M1:Type1, Q:Type).
+mode_arg(M, Type0, mode(?,Q:Type)) :-
 	strip_module(M:Type0, M1, Type1),
-	resolve_type(M1:Type1, Type).
+	resolve_type(M1:Type1, Q:Type).
 
 mode_specifier(+(Type), +, Type).
 mode_specifier(-(Type), -, Type).
@@ -63,7 +66,11 @@ mode_specifier(?(Type), ?, Type).
 signature(M:Goal, Det) :-
 	functor(Goal, F, A),
 	functor(Gen, F, A),
-	current_signature(Gen, M, Arguments, Det),
+	(   predicate_property(M:Goal, imported_from(Q))
+	->  true
+	;   Q = M
+	),
+	current_signature(Gen, Q, Arguments, Det),
 	Goal =.. [F|GoalArgs],
 	maplist(signature_arg, Arguments, GoalArgs).
 
@@ -83,3 +90,5 @@ signature_arg(_, Type, GoalArg) :-
 system:term_expansion((:- pred(Decl)), Clauses) :-
 	prolog_load_context(module, M),
 	phrase(pred_clauses(Decl, M), Clauses).
+
+

@@ -17,3 +17,5 @@
 
 ---++ Signatures
 
+?- listing(current_signature). (layout)
+

@@ -1,6 +1,7 @@
 :- use_module(type_decl).
 :- use_module(library(plunit)).
 
+:- type system:any.
 :- type system:atomic.
 :- type system:compound.
 :- type system:stream.
@@ -17,6 +18,7 @@
 
 :- type system:boolean < [system:atom] ---> true ; false.
 
+system:any(_).
 system:stream(X) :- is_stream(X).
 system:input_stream(X) :- is_stream(X), stream_property(X, input).
 system:output_stream(X) :- is_stream(X), stream_property(X, output).
