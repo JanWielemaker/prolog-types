@@ -181,6 +181,9 @@ test_body(Type, X, B) :-
 
 test_type(Atom, X, (X == Atom)) :-
 	atomic(Atom), !.
+test_type(Var, X, B) :-
+	var(Var),
+	type_arg(Var, X, B).
 test_type(Term, X, (nonvar(X),X=T2,TArgs)) :-
 	functor(Term, Name, Arity),
 	functor(T2, Name, Arity),
@@ -220,6 +223,9 @@ one_of(B1, B2, (B1->true;B2)).
 
 constraint_type(Atom, _, _, true) :-
 	atomic(Atom), !.
+constraint_type(Var, M, X, B) :-
+	var(Var), !,
+	B = type_decl:type_constraint(M:Var, X).
 constraint_type(Term, M, X, (X = T2, TArgs)) :-
 	functor(Term, Name, Arity),
 	functor(T2, Name, Arity),

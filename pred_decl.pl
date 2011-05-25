@@ -106,9 +106,13 @@ signature(M:Goal, Arguments, Det) :-
 %	and provides the determinism information about the predicate.
 
 head_signature(M:Goal, Det) :-
-	signature(M:Goal, Arguments, Det),
-	Goal =.. [_|GoalArgs],
-	maplist(head_arg, Arguments, GoalArgs).
+	(   signature(M:Goal, Arguments, Det),
+	    Goal =.. [_|GoalArgs],
+	    maplist(head_arg, Arguments, GoalArgs)
+	*-> true
+	;   term_variables(Goal, Vars),
+	    maplist(set_instantated(argument), Vars)
+	).
 
 head_arg(mode(I,T), GoalArg) :-
 	head_arg(I, T, GoalArg).
@@ -139,7 +143,7 @@ goal_signature(M:Goal, Det) :-
 	maplist(goal_arg, Arguments, GoalArgs).
 
 goal_arg(mode(I,Type), GoalArg) :-
-	instantiated_call(I, GoalArg),
+	instantiated_call(I, Type, GoalArg),
 	type_constraint(Type, GoalArg),
 	instantiated_exit(I, GoalArg).
 
@@ -147,13 +151,45 @@ goal_arg(mode(I,Type), GoalArg) :-
 		 *	       MODES		*
 		 *******************************/
 
-instantiated_call(++, GoalArg) :- !,
-	get_attr(GoalArg, instantiated, ground).
-instantiated_call(+, GoalArg) :- !,
-	get_attr(GoalArg, instantiated, type).
-instantiated_call(--, GoalArg) :-
-	\+ get_attr(GoalArg, instantiated, _).
-instantiated_call(_, _).
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Instantiation status:
+	- ground		% Ground
+	- type			% Instantiated up to type
+	- unbound		% Argument must be unbound at entry
+	- argument		% Predicate argument, no signature
+
+Note that instantiated to type is the same   as ground iff type does not
+contain =any=.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+instantiated_call(++, Type, GoalArg) :- !,
+	(   get_attr(GoalArg, instantiated, ground)
+	->  true
+	;   ground(GoalArg)
+	->  true
+	;   \+ partial_type(Type)
+	->  call(Type, GoalArg)
+	;   get_attr(GoalArg, instantiated, argument)
+	->  put_attr(GoalArg, instantiated, ground)
+	).
+instantiated_call(+, Type, GoalArg) :- !,
+	(   get_attr(GoalArg, instantiated, Instantiated)
+	->  (   Instantiated == (type)
+	    ->	true
+	    ;	Instantiated == ground
+	    ->	true
+	    ;	Instantiated == argument
+	    ->	put_attr(GoalArg, Instantiated, type)
+	    )
+	;   call(Type, GoalArg)
+	).
+instantiated_call(--, _, GoalArg) :-
+	(   get_attr(GoalArg, instantiated, argument)
+	->  put_attr(GoalArg, instantiated, unbound)
+	;   var(GoalArg),
+	    \+ get_attr(GoalArg, instantiated, _)
+	).
+instantiated_call(_, _, _).
 
 instantiated_exit(++, _) :- !.
 instantiated_exit(+, _) :- !.
@@ -163,6 +199,17 @@ instantiated_exit(_, GoalArg) :-
 
 set_instantated(How, Var) :-
 	put_attr(Var, instantiated, How).
+
+%%	partial_type(+Type) is semidet.
+%
+%	True if Type only specifies the top.
+
+partial_type(Type) :-
+	current_type(Type, Constructor),
+	\+ (  sub_term(Any, Constructor),
+	      Any == any
+	   ).
+
 
 
 		 /*******************************
