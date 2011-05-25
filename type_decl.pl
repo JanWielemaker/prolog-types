@@ -2,7 +2,7 @@
 	  [ (type)/1,			% +Declaration
 	    current_type/2,		% :Name, ?Definition
 	    subtype_of/2,		% T1, T2
-	    resolve_type/2,		% :TypeIn, :TypeOut
+	    resolve_type/2,		% :TypeIn, -TypeOut
 	    type_constraint/2,		% +Type, +Value
 	    op(1150, fx, type),
 	    op(1130, xfx, --->)
@@ -21,7 +21,7 @@ This module deals with Hindley-Milner declations  of types.
 :- meta_predicate
 	current_type(:, ?),
 	subtype_of(:, :),
-	resolve_type(:, :).
+	resolve_type(:, -).
 
 :- multifile
 	current_type/3,			% Type, Module, Constructor
