@@ -9,6 +9,17 @@
 
 /** <module> Predicate signatures
 
+Mode proposal
+
+    $ +(Type) :
+    Argument satifies Type at entrance.
+    $ -(Type) :
+    Argument satisfies Type at exit.  Argument is steadfast.
+    $ --(Type) :
+    Argument satisfies Type at exit.  Argument must be unbound at entry.
+    $ @(Type) :
+    Argument is not touched, but Argument satisfies Type at exit.  This
+    is used for type-checks.
 */
 
 :- multifile
