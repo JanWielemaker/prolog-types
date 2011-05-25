@@ -1,4 +1,4 @@
-:- module(signature_decl,
+:- module(pred_decl,
 	  [ (pred)/1,			% +Signature
 	    signature/2,		% ?Signature, -Det
 	    op(1150, fx, pred),		% signature declaration
@@ -40,7 +40,7 @@ pred_clauses((A,B), M) --> !,
 	pred_clauses(A, M),
 	pred_clauses(B, M).
 pred_clauses(G, M) -->
-	[ signature_decl:current_signature(Gen, Q, Arguments, Det) ],
+	[ pred_decl:current_signature(Gen, Q, Arguments, Det) ],
 	{ pred_clause(G, M, Q, Gen, Arguments, Det)
 	}.
 

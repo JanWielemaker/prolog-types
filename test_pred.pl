@@ -1,5 +1,6 @@
 :- [test_decl].
-:- use_module(signature_decl).
+:- use_module(type_decl).
+:- use_module(pred_decl).
 
 :- type system:read_mode ---> read.
 :- type system:write_mode ---> write ; append ; update.
