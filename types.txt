@@ -1,0 +1,241 @@
+---+ Introduction
+
+Adding types, mode and determinism definition and analysis to Prolog
+serves many purposes. Especially if it is integrated into the (PceEmacs)
+editor and/or compiler this can significantly reduce errors that need to
+be fixed at runtime. PceEmacs has proven that integrating real syntax
+checking and cross-referencing in the editor greatly improves
+productivity and the experience using SWI-Prolog. Types, modes and
+determinism analysis take this one step further.
+
+Like [Schrijvers et all], a crucial idea is to allow for partially typed
+programs to ease the transition.  However, we would like to take this
+various steps further.
+
+  $ Check non-typed predicates :
+  [Schrijvers et all] does not type-check predicates that themselves
+  have no :- pred <signature> declaration.  It is often possible to
+  decide that a clause is broken from the signatures of some of the
+  goals that appear in the body.  This can be enhanced by extending
+  the scope of the analysis by unfolding called predicates.
+
+  We would not only like to check such predicates, but also derive a
+  (partial) signature from the implementation.
+
+  $ Use richer types :
+  The pure Hindley-Milner types define types as a set of atomic values
+  and functors with typed arguments.  We extend this with union,
+  intersection and negation.  This allows us to validate the example
+  below.  Here, the if-branch is valid due to the atom/1 guard and the
+  then-branch is valid because intersection(atomic,not(atom)) is number.
+
+    ==
+    :- pred to_codes(+atomic, -codes) is det.
+
+    to_codes(Atomic, Codes) :-
+	(   atom(Atomic)
+	->  atom_codes(Atomic, Codes)
+	;   number_codes(Atomic, Codes)
+	).
+    ==
+
+  In addition, we introduce `partial types': the type =any= may appear
+  anywhere and indicates that no checking takes place beyond this point.
+  This allows for example to have a type list without specifying the
+  arguments.
+
+  ==
+  :- type list ---> [] ; [any|list].
+  ==
+
+  $ Types are module-aware :
+  Defining a type creates a semidet predicate <type>(Param, ...,
+  Term) that is propagated through the module system like a normal
+  predicate. The remainder of the type logic exploits the properties of
+  this predicate.
+
+  $ Add mode checking :
+  Mode checking fetches many errors. One class is particularly
+  interesting: incorrect re-usage of variables.  For example, cases
+  like this:
+
+    ==
+	open(Something, read, Stream),
+	read_stream_to_codes(Stream, Codes),
+	close(Stream),
+	...
+	open(File, write, Stream),
+	write(Stream, Term),
+	close(Stream),
+    ==
+
+  $ Add determism checking :
+  Notably, it would be highly informative if recursive calls can be
+  classified as subject to last-call optimization or not.  Visual
+  feedback in e.g., PceEmacs would be a bit step ahead.
+
+  $ Allow for multiple signatures
+  A single predicate can have multiple signatures.  The checker will
+  try to make a model for the code being checked using any of these
+  signatures.
+
+
+---+ Defining types
+
+Primitive types are defined as empty types that are (already)
+accompagnied by a test-predicate.  E.g.:
+
+  ==
+  :- type atom.
+  :- type integer.
+  :- type float.
+  ==
+
+The hierarchy is created using disjunctions as illustrated below. We use
+the {} notation because the already reserved meaning and peculiar
+mapping between syntax and term which make it unpopular as a general
+term.
+
+  ==
+  :- type number ---> {integer} ; {float}
+  :- type atomic ---> {atom}    ; {number}.
+  ==
+
+The {} can also be used as a mechanism for defining anonymous types, as
+in illustrated in the example below:
+
+  ==
+  :- type write_option --->
+	(   attributes({ignore;dots;write;portray})
+	;   backquoted_string(boolean)
+	;   blobs((write;portray))
+	;   character_escapes(boolean)
+	;   ignore_ops(boolean)
+	;   max_depth(integer)
+	;   module(module)
+	;   numbervars(boolean)
+	;   partial(boolean)
+	;   portray(boolean)
+	;   portray_goal(pred(any,list(write_option)))
+	;   priority(integer)
+	;   quoted(boolean)
+	;   spacing({standard;next_argument})
+	).
+  ==
+
+FIXME: Confusing?
+
+Internall, we also need type intersection and negation. Type
+intersection is used to establish a model for a non-typed clause. For
+example, the code below has the valid model list(code) for the variables
+List and Codes, which is the intersection of list and list(code):
+
+  ==
+	...,
+	sort(List, Codes),
+	atom_codes(Atom, Codes).
+  ==
+
+We need negation to deal with committed choice (-> and !) as illustrated
+in _|Use richer types|_ above.
+
+
+---++ Type constraints
+
+In addition to the type-test, <type>(Param1, ..., Term) there is a
+predicate type_constraint(+Type, +Term). It Term is partially
+instantiated w.r.t. Type, this puts a constraint on the insuficiantly
+instantiated parts.  E.g.
+
+  ==
+  ?- type_constraint(list, [X|Y]).
+  type_constraint(list, Y).
+
+  ?- type_constraint(list, [X|Y]), Y = a.
+  false.
+  ==
+
+Multiple type constraints on the same variable are replaced by the
+intersection of the types.  This process fails of the intersection is
+empty. This is illustrated below. Note that we could also bind X to [],
+but this will loose other information about the variable.
+
+  ==
+  ?- type_constraint(list, X), type_constraint(atom, X).
+  type_constraint(one_of([[]]), X).
+  ==
+
+If the intersection is empty, the conjunction fails:
+
+  ==
+  ?- type_constraint(atom, X), type_constraint(integer, X).
+  false.
+  ==
+
+Similar, we can create disjunctive models for code:
+
+  ==
+  foo(X) :- atom(X), ...
+  foo(X) :- number(X), ...
+  ==
+
+
+---+ Defining modes
+
+We recognise the following modes:
+
+  $ +(Type) :
+  Argument satifies Type at call.
+  $ ++(Type) :
+  Argument satifies Type and is ground at call.
+  $ -(Type) :
+  Argument satisfies Type at exit.  Argument is steadfast.
+  $ ?(Type) :
+  Unknown.  May do anything but argument satisfies Type at exit.
+  $ --(Type) :
+  Argument satisfies Type at exit.  Argument must be unbound at entry.
+  $ @(Type) :
+  Argument is not touched, but Argument satisfies Type at exit.  This
+  is used for type-checks.
+  $ invalidate(Type)
+  Argument must be of Type at call and may not be accessed afterwards.
+  This is introduced to avoid the common reuse of invalid handles, as
+  illustrated below. Such code is mode and type-safe, not uncommon and
+  wrong.
+
+  ==
+	...,
+	close(Stream),
+	...,
+	read(Stream, Term).
+  ==
+
+
+---+ Defining determinism
+
+  $ fail :
+  Predicate always fails.
+  $ det :
+  Predicate always succeeds without a choice-point.
+  $ semidet :
+  Predicate fails or succeeds without a choice-point.
+  $ nondet :
+  Predicate produces 0 or more solutions.
+  $ multi :
+  Predicate produces 1 or more solutions.
+
+---+ The type checking process
+
+The input of the type-checker is a goal. The checker collects all
+clauses of the goal and establishes consistent type and mode models for
+the clauses. If no such model exists, the code is errornous. If the
+type-checker finds a goal in a body for which there are no signatures,
+it unfolds the implementation of the goal. We assume that the default
+behaviour will type-check the exported predicates of a module,
+encouraging the user to provide signatures for these.
+
+---++ Recursive procedures
+
+---++ Reporting errors
+
+
