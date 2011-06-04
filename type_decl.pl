@@ -85,10 +85,10 @@ current_type(Type, Constructor) :-
 type(Declaration) :-
 	throw(error(context_error(nodirective, type(Declaration)), _)).
 
-expand_type((Type ---> Constructor), []) :-
+type_expansion((Type ---> Constructor), []) :-
 	\+ \+ (numbervars(Type, 0, _), \+ ground(Constructor)), !,
 	instantiation_error(Constructor).
-expand_type((TypeSpec ---> Constructor),
+type_expansion((TypeSpec ---> Constructor),
 	    [ type_decl:current_type(Type, Q, Representation)
 	    | TestClauses
 	    ]) :- !,
@@ -101,7 +101,7 @@ expand_type((TypeSpec ---> Constructor),
 	    test_body(Representation, X, TestBody),
 	    extend(Q:Type, X, TestHead)
 	).
-expand_type(MAlias = MType,
+type_expansion(MAlias = MType,
 	    [ type_decl:type_alias(Alias, QA, QT:QType),
 	      (AliasHead :- TypeHead)
 	    ]) :- !,
@@ -110,7 +110,7 @@ expand_type(MAlias = MType,
 	strip_module(M:MType, QT, QType),
 	extend(QA:Alias, X, AliasHead),
 	extend(QT:QType, X, TypeHead).
-expand_type(TypeSpec,
+type_expansion(TypeSpec,
 	    [ type_decl:current_type(Type, Q, primitive(Q:Type))
 	    ]) :-
 	prolog_load_context(module, M),
@@ -205,6 +205,7 @@ qtype_constraint(Type, Var) :-
 	    )
 	;   put_attr(Var, type, Type)
 	).
+qtype_constraint(=(Value), Value).
 qtype_constraint(primitive(Test), Value) :-
 	call(Test, Value).
 qtype_constraint(compound(N,A,ArgTypes), Value) :-
@@ -221,8 +222,8 @@ qtype_constraint(intersection(T1,T2), Value) :-
 	qtype_constraint(T2, Value).
 qtype_constraint(not(T1), Value) :-
 	\+ qtype_constraint(T1, Value).
-qtype_constraint(type(M:T), Value) :-
-	current_type(T, M, Type),
+qtype_constraint(type(T), Value) :-
+	current_type(T, Type),
 	qtype_constraint(Type, Value).
 
 
@@ -260,10 +261,25 @@ qtype_constraint(type(M:T), Value) :-
 %	definitions, _not_ to the other terms.
 
 normalise_type(TypeIn, TypeOut) :-
-	nnf(TypeIn, NNF),
+	expand_type(TypeIn, TypeExpanded),
+	nnf(TypeExpanded, NNF),
 	dnf(NNF, DNF1),
 	simplify_conj(DNF1, DNF2),
 	simplify_disj(DNF2, TypeOut).
+
+expand_type(type(T), Expanded) :- !,
+	current_type(T, Exp0),
+	expand_type(Exp0, Expanded).
+expand_type(union(A0,B0), union(A,B)) :- !,
+	expand_type(A0, A),
+	expand_type(B0, B).
+expand_type(intersection(A0,B0), intersection(A,B)) :- !,
+	expand_type(A0, A),
+	expand_type(B0, B).
+expand_type(not(A0), not(A)) :- !,
+	expand_type(A0, A).
+expand_type(T, T).
+
 
 %%	nnf(+Formula, -NNF)
 %
@@ -458,7 +474,7 @@ list_to_conj([H|T], (H,G)) :-
 		 *******************************/
 
 system:term_expansion((:- type(Type)), Clauses) :-
-	expand_type(Type, Clauses).
+	type_expansion(Type, Clauses).
 
 
 		 /*******************************
