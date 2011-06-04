@@ -1,9 +1,9 @@
 :- module(type_decl,
 	  [ (type)/1,			% +Declaration
 	    current_type/2,		% :Name, ?Definition
-	    subtype_of/2,		% T1, T2
 	    resolve_type/2,		% :TypeIn, -TypeOut
 	    type_constraint/2,		% +Type, +Value
+	    normalise_type/2,		% +TypeIn, -TypeOut
 	    op(1150, fx, type),
 	    op(1130, xfx, --->)
 	  ]).
@@ -71,27 +71,6 @@ current_type(Type, Constructor) :-
 	resolve_type(Type, M:T),
 	current_type(T, M, Constructor).
 
-%%	subtype_of(:Type, :Super) is nondet.
-%
-%	True if Type is a subtype of Super.
-%
-%	@tbd	module inheritance of types.
-
-subtype_of(Sub, Super) :-
-	resolve_type(Sub, QSub),
-	resolve_type(Super, QSuper),
-	qsubtype_of(QSub, QSuper).
-
-qsubtype_of(Type, Type).
-qsubtype_of(M:Type, Super) :-
-	nonvar(Type), !,
-	subtype_of(Type, M, Parent),
-	qsubtype_of(Parent, Super).
-qsubtype_of(Type, Super) :-
-	nonvar(Super),
-	subtype_of(Sub, SubM, Super),
-	qsubtype_of(Type, SubM:Sub).
-
 %%	constructor_value(+Constructor, -Value) is nondet.
 %
 %	Value is a concrete value that   appears in Constructor. Used to
@@ -126,10 +105,9 @@ expand_type((TypeSpec ---> Constructor),
 	    [ QTestClause,
 	      type_decl:current_type(Type, Q, Constructor),
 	      (type_decl:type_constraint(Type, Q, X) :- ConstraintBody)
-	    | SubTypeClauses
 	    ]) :- !,
 	prolog_load_context(module, M),
-	subtype_clauses(TypeSpec, M, Q, Type, SubTypeClauses),
+	strip_module(M:TypeSpec, Q, Type),
 	test_clause(Type, Constructor, TestClause),
 	constraint_body(M:Type, Constructor, X, ConstraintBody),
 	qualify(M, Q, TestClause, QTestClause).
@@ -144,21 +122,9 @@ expand_type(MAlias = MType,
 	extend(QT:QType, X, TypeHead).
 expand_type(TypeSpec,
 	    [ type_decl:current_type(Type, Q, '$primitive')
-	    | SubTypeClauses
 	    ]) :-
 	prolog_load_context(module, M),
-	subtype_clauses(TypeSpec, M, Q, Type, SubTypeClauses).
-
-
-subtype_clauses(QType < Supers, M, Q, Type, SubTypeClauses) :- !,
-	strip_module(M:QType, Q, Type),
-	maplist(subtype_clause(Type, Q), Supers, SubTypeClauses).
-subtype_clauses(QType, M, Q, Type, []) :-
-	strip_module(M:QType, Q, Type).
-
-subtype_clause(Type, M, QSuper,
-	       type_decl:subtype_of(Type, M, Q:Super)) :-
-	strip_module(M:QSuper, Q, Super).
+	strip_module(M:TypeSpec, Q, Type).
 
 qualify(M, M, G, G) :- !.
 qualify(_, Q, G, Q:G).
@@ -184,6 +150,8 @@ test_type(Atom, X, (X == Atom)) :-
 test_type(Var, X, B) :-
 	var(Var),
 	type_arg(Var, X, B).
+test_type({Type}, X, Goal) :- !,
+	extend(Type, X, Goal).
 test_type(Term, X, (nonvar(X),X=T2,TArgs)) :-
 	functor(Term, Name, Arity),
 	functor(T2, Name, Arity),
@@ -275,44 +243,169 @@ qtype_constraint(M:Type, Value) :-
 qtype_constraint(Type, Value) :-
 	call(Type, Value).
 
-%%	common_subtype(+T1, +T2, -T) is nondet.
+%%	normalise_type(:TypeIn, :TypeOut) is det.
 %
-%	T is a common subtype of T1 and T2. The findall and member is to
-%	provide early determinism.
+%	TypeOut is a normalised form of  TypeIn.   Fails  if no term can
+%	satisfy  TypeIn,  i.e.,  TypeIn  is    inconsistent.   The  type
+%	representation is as follows:
 %
-%	@tbd	Remove subtypes of already present types
+%	  * =(Value)
+%	  True if Term is Value (Value is atomic)
+%	  * compound(Name, Arity, ArgTypes)
+%	  True if Term is a compound of Name/Arity and ArgTypes describe
+%	  the types of the arguments
+%	  * anything
+%	  Always true
+%	  * nothing
+%	  Always false.  This means the type is inconsistent.
+%	  * primitive(:Test)
+%	  Type is built-in and Test validates that an object is
+%	  of the Type.
+%	  * union(Type1,Type2)
+%	  Type disjunction
+%	  * intersection(Type1,Type2)
+%	  Type intersection
+%	  * not(Type)
+%	  Type negation
+%
+%	We first translate the type to   disjunctive  normal form (DNF),
+%	after which we evaluate the conjunctions and combine them.  For
+%	the conjunctions.
+%
+%	Note  that  TypeIn  is   fully    (module)   qualified.   Module
+%	qualifications are immediately attached to   Type?  in the above
+%	definitions, _not_ to the other terms.
 
-common_subtype(T, T, T) :- !.
-common_subtype(T1, T2, T) :-
-	findall(T, gen_common_subtype(T1,T2,T), TL),
-	member(T, TL).
+normalise_type(TypeIn, TypeOut) :-
+	nnf(TypeIn, NNF),
+	dnf(NNF, DNF1),
+	simplify_conj(DNF1, DNF1),
+	simplify_disj(DNF1, TypeOut).
 
-gen_common_subtype(T1, T2, T) :-
-	qsubtype_of(T, T1),
-	qsubtype_of(T, T2).
-gen_common_subtype(M:T1, M:T2, M:T) :-
-	functor(T1, F, A),
-	functor(T2, F, A),
-	A > 0,
-	T1 =.. [_|TA1],
-	T2 =.. [_|TA2],
-	maplist(gen_common_subtype, TA1, TA2, TA),
-	T =.. [F|TA].
-gen_common_subtype(T1, T2, T) :-
-	(   sub_atomic_general(T1, T2, T)
-	;   sub_atomic_general(T2, T1, T)
+%%	nnf(+Formula, -NNF)
+%
+%	Rewrite to Negative Normal Form, meaning negations only appear
+%	around literals.
+
+nnf(not(not(A0)), A) :- !,
+	nnf(A0, A).
+nnf(not(intersection(A0,B0)), union(A,B)) :- !,
+	nnf(not(A0), A),
+	nnf(not(B0), B).
+nnf(not(union(A0,B0)), intersection(A,B)) :- !,
+	nnf(not(A0), A),
+	nnf(not(B0), B).
+nnf(A, A).
+
+
+%%	dnf(+NNF, -DNF)
+%
+%	Convert a formula in NNF to Disjunctive Normal Form (DNF)
+
+dnf(union(A0,B0), union(A, B)) :- !,
+	dnf(A0, A),
+	dnf(B0, B).
+dnf(intersection(A0,B0), DNF):- !,
+	dnf(A0, A1),
+	dnf(B0, B1),
+	dnf1(intersection(A1,B1), DNF).
+dnf(DNF, DNF).
+
+dnf1(intersection(A0, union(B,C)), union(P,Q)) :- !,
+	dnf1(intersection(A0,B), P),
+	dnf1(intersection(A0,C), Q).
+dnf1(intersection(union(B,C), A0), union(P,Q)) :- !,
+	dnf1(intersection(A0,B), P),
+	dnf1(intersection(A0,C), Q).
+dnf1(DNF, DNF).
+
+%%	simplify_conj(+DNFIn, -DNFOut) is det.
+%
+%	Simplifies the (inner) intersection  and   negations  inside the
+%	(outer) union.
+
+simplify_conj(union(A0,B0), union(A,B)) :- !,
+	simplify_conj(A0, A),
+	simplify_conj(B0, B).
+simplify_conj(A0, A) :-
+	intersection_list(A0, L0),
+	simplify_list(conj, L0, L),
+	intersection_list(A, L).
+
+:- meta_predicate
+	simplify_list(3, +, -).
+
+simplify_list(Reduce, L0, L) :-
+	select(A1, L0, L1),
+	select(A2, L1, L2),
+	call(Reduce, A1, A2, A), !,
+	simplify_list(Reduce, [A|L2], L).
+simplify_list(_, L, L).
+
+intersection_list(Intersection, List) :-
+	nonvar(Intersection), !,
+	phrase(intersection_list(Intersection), List).
+intersection_list(Intersection, List) :-
+	list_intersection(List, Intersection).
+
+intersection_list(intersection(A,B)) -->
+	intersection_list(A),
+	intersection_list(B).
+intersection_list(A) -->
+	[A].
+
+list_intersection([One], One) :- !.
+list_intersection([H|T], intersection(H,R)) :-
+	list_intersection(T, R).
+
+
+conj(X, X, X).
+conj(anything, X, X).
+conj(nothing, _, nothing).
+conj(=(V), primitive(Test), Type) :-
+	(   call(Test, V)
+	->  Type = =(V)
+	;   Type = nothing
 	).
-
-sub_atomic_general(T1, M:T2, T) :-
-	qsubtype_of(T1, system:atomic),
-	current_type(T2, M, Constructor),
-	findall(V, constructor_value(Constructor, V), Vs0),
-	sort(Vs0, Vs),
-	Vs \== [],
-	(   Vs = [V]
-	->  T = system:(=(V))
-	;   T = lists:member(Vs)
+conj(=(V), not(primitive(Test)), Type) :-
+	(   call(Test, V)
+	->  Type = nothing
+	;   Type = =(V)
 	).
+conj(not(=(_)), primitive(Test), primitive(Test)). % Simplified
+conj(compound(N,A,T), primitive(compound), compound(N,A,T)).
+conj(compound(N,A,AV1), compound(N,A,AV2), compound(N,A,AV)) :-
+	maplist(normalise_type, intersection(AV1,AV2), AV).
+
+%%	simplify_disj(+UnionIn, -UnionOut) is det.
+%
+%	Simplify the outer union of the DNF.
+
+simplify_disj(UnionIn, UnionOut) :-
+	union_list(UnionIn, L0),
+	simplify_list(disj, L0, L),
+	union_list(UnionOut, L).
+
+union_list(Intersection, List) :-
+	nonvar(Intersection), !,
+	phrase(union_list(Intersection), List).
+union_list(Intersection, List) :-
+	list_union(List, Intersection).
+
+union_list(union(A,B)) -->
+	union_list(A),
+	union_list(B).
+union_list(A) -->
+	[A].
+
+list_union([One], One) :- !.
+list_union([H|T], intersection(H,R)) :-
+	list_intersection(T, R).
+
+disj(X, X, X).
+disj(anything, _, anything).
+disj(nothing, X, X).
+
 
 %%	(type):attr_unify_hook(Type, Val) is semidet.
 %
