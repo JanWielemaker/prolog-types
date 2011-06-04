@@ -229,10 +229,10 @@ type_constraint(Type, Value) :-
 qtype_constraint(Type, Var) :-
 	var(Var), !,
 	(   get_attr(Var, type, Type2)
-	->  common_subtype(Type, Type2, NewType),
-	    (	NewType == Type2
+	->  (   Type = Type2
 	    ->	true
-	    ;	put_attr(Var, type, NewType)
+	    ;	normalise_type(intersection(Type, Type2), NewType),
+		put_attr(Var, type, NewType)
 	    )
 	;   put_attr(Var, type, Type)
 	).
@@ -279,8 +279,8 @@ qtype_constraint(Type, Value) :-
 normalise_type(TypeIn, TypeOut) :-
 	nnf(TypeIn, NNF),
 	dnf(NNF, DNF1),
-	simplify_conj(DNF1, DNF1),
-	simplify_disj(DNF1, TypeOut).
+	simplify_conj(DNF1, DNF2),
+	simplify_disj(DNF2, TypeOut).
 
 %%	nnf(+Formula, -NNF)
 %
@@ -348,7 +348,7 @@ intersection_list(Intersection, List) :-
 intersection_list(Intersection, List) :-
 	list_intersection(List, Intersection).
 
-intersection_list(intersection(A,B)) -->
+intersection_list(intersection(A,B)) --> !,
 	intersection_list(A),
 	intersection_list(B).
 intersection_list(A) -->
@@ -358,6 +358,12 @@ list_intersection([One], One) :- !.
 list_intersection([H|T], intersection(H,R)) :-
 	list_intersection(T, R).
 
+
+%%	conj(+T1,+T2,-T)
+%
+%	Simplification rules for intersection of  basic types. Note that
+%	we assume that primitive types are  disjoint. The only exception
+%	is that atom and list share the value [].
 
 conj(X, X, X).
 conj(anything, X, X).
@@ -372,6 +378,8 @@ conj(=(V), not(primitive(Test)), Type) :-
 	->  Type = nothing
 	;   Type = =(V)
 	).
+conj(primitive(atom),primitive(is_list), =([])).
+conj(primitive(_),primitive(_), nothing).
 conj(not(=(_)), primitive(Test), primitive(Test)). % Simplified
 conj(compound(N,A,T), primitive(compound), compound(N,A,T)).
 conj(compound(N,A,AV1), compound(N,A,AV2), compound(N,A,AV)) :-
@@ -392,7 +400,7 @@ union_list(Intersection, List) :-
 union_list(Intersection, List) :-
 	list_union(List, Intersection).
 
-union_list(union(A,B)) -->
+union_list(union(A,B)) --> !,
 	union_list(A),
 	union_list(B).
 union_list(A) -->
@@ -405,33 +413,18 @@ list_union([H|T], intersection(H,R)) :-
 disj(X, X, X).
 disj(anything, _, anything).
 disj(nothing, X, X).
-
+disj(intersection(X,_),X,X).
+disj(intersection(_,X),X,X).
 
 %%	(type):attr_unify_hook(Type, Val) is semidet.
 %
 %	Unification hook for the type constraint.
 
-(type):attr_unify_hook(system:(=(Value)), Val) :- !,
-	(   get_attr(Val, type, Type)
-	->  call(Type, Value)
-	;   nonvar(Val)
-	->  Val == Value
-	).
-(type):attr_unify_hook(lists:member(Set), Val) :- !,
-	(   get_attr(Val, type, Type)
-	->  (   Type = lists:member(Set2)
-	    ->	ord_intersection(Set, Set2, NewSet),
-		NewSet \== [],
-		put_attr(Val, type, lists:member(NewSet))
-	    ;	include(call(Type), Set, NewSet),
-		NewSet \== [],
-		put_attr(Val, type, lists:member(NewSet))
-	    )
-	;   nonvar(Val)
-	->  memberchk(Val, Set)
-	).
+(type):attr_unify_hook(=(Value), Val) :- !,
+	get_attr(Val, type, Type),
+	call(Type, Value).
 (type):attr_unify_hook(Type, Val) :-
-	type_constraint(Type, Val).		% qtype_constraint?
+	type_constraint(Type, Val).
 
 (type):attribute_goals(Var) -->
 	{ get_attr(Var, type, Type) },
@@ -439,6 +432,7 @@ disj(nothing, X, X).
 
 type_goals(Type, Var) -->
 	[ type_constraint(Type, Var) ].
+
 
 		 /*******************************
 		 *	       UTIL		*
