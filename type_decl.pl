@@ -88,13 +88,14 @@ expand_type((Type ---> Constructor), []) :-
 	\+ \+ (numbervars(Type, 0, _), \+ ground(Constructor)), !,
 	instantiation_error(Constructor).
 expand_type((TypeSpec ---> Constructor),
-	    [ QTestClause,
-	      type_decl:current_type(Type, Q, Constructor)
+	    [ (TestHead :- TestBody),
+	      type_decl:current_type(Type, Q, Representation)
 	    ]) :- !,
 	prolog_load_context(module, M),
 	strip_module(M:TypeSpec, Q, Type),
-	test_clause(Type, Constructor, TestClause),
-	qualify(M, Q, TestClause, QTestClause).
+	type_represention(Constructor, Q, Representation),
+	test_body(Representation, X, TestBody),
+	extend(Q:Type, X, TestHead).
 expand_type(MAlias = MType,
 	    [ type_decl:type_alias(Alias, QA, QT:QType),
 	      (AliasHead :- TypeHead)
@@ -110,48 +111,61 @@ expand_type(TypeSpec,
 	prolog_load_context(module, M),
 	strip_module(M:TypeSpec, Q, Type).
 
-qualify(M, M, G, G) :- !.
-qualify(_, Q, G, Q:G).
+
+%%	type_represention(+Constructor, +Module, -Representation)
+%
+%	Translate  the  surface  Constructor   representation  into  the
+%	internal type representation.
+%
+%	@tbd	Module resolution is not correct
+
+type_represention((A0;B0), M, union(A,B)) :- !,
+	type_arg(M, A0, A),
+	type_represention(B0, M, B).
+type_represention(A0, M, A) :-
+	type_arg(M, A0, A).
+
+type_arg(_, Value, =(Value)) :-
+	atomic(Value), !.
+type_arg(M, Var, type(M:Var)) :-
+	var(Var), !.
+type_arg(M, {Type}, type(Q:Type)) :- !,
+	strip_module(M:Type, Q, Type).
+type_arg(M, Compound, compound(N,A,ArgTypes)) :-
+	compound(Compound),
+	functor(Compound, N, A),
+	Compound =.. [N|ArgTypes0],
+	maplist(type_arg(M), ArgTypes0, ArgTypes).
 
 
-%%	test_clause(+Type, +TypeConstructor, -Clause) is det.
+%%	test_body(+Type, -Body) is det.
 %
 %	Clause is a semidet  unary  predicate   that  tests  that a term
 %	satisfies Type.
 
-test_clause(Type, Constructor, (Head :- Body)) :-
-	extend(Type, X, Head),
-	test_body(Constructor, X, Body).
-
-test_body((C1;C2), X, (B1->true;B2)) :- !,
-	test_type(C1, X, B1),
+test_body(union(C1,C2), X, (B1->true;B2)) :- !,
+	test_body(C1, X, B1),
 	test_body(C2, X, B2).
-test_body(Type, X, B) :-
-	test_type(Type, X, B).
-
-test_type(Atom, X, (X == Atom)) :-
-	atomic(Atom), !.
-test_type(Var, X, B) :-
-	var(Var),
-	type_arg(Var, X, B).
-test_type({Type}, X, Goal) :- !,
-	extend(Type, X, Goal).
-test_type(Term, X, (nonvar(X),X=T2,TArgs)) :-
-	functor(Term, Name, Arity),
+test_body(intersection(C1,C2), X, (B1->true;B2)) :- !,
+	test_body(C1, X, B1),
+	test_body(C2, X, B2).
+test_body(not(C0), X, \+(C)) :- !,
+	test_body(C0, X, C).
+test_body(anything, _, true).
+test_body(=(Value), X, (X == Value)).
+test_body(type(Type), X, Goal) :-
+	(   qcallable(Type)
+	->  extend(Type, X, Goal)
+	;   Goal = call(Type, X)
+	).
+test_body(compound(Name,Arity,ArgTypes), X, (nonvar(X),X=T2,TArgs)) :-
 	functor(T2, Name, Arity),
-	Term =.. [Name|TypeArgs],
 	T2   =.. [Name|Args],
-	maplist(type_arg, TypeArgs, Args, TArgList),
+	maplist(test_body, ArgTypes, Args, TArgList),
 	list_to_conj(TArgList, TArgs).
 
-type_arg(Any, _, B) :-
-	Any == any, !,
-	B = true.
-type_arg(Var, X, Call) :-
-	var(Var), !,
-	Call = call(Var, X).
-type_arg(Type, X, B) :-
-	extend(Type, X, B).
+qcallable(_:C) :- !, callable(C).
+qcallable(C) :- callable(C).
 
 
 :- meta_predicate
