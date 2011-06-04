@@ -384,6 +384,7 @@ conj(primitive(Test),Type,NewType) :-
 conj(primitive(_),primitive(_), nothing).
 conj(not(=(_)), primitive(Test), primitive(Test)). % Simplified
 conj(compound(N,A,T), primitive(compound), compound(N,A,T)).
+conj(compound(_,_,_), primitive(_), nothing).
 conj(compound(N,A,AV1), compound(N,A,AV2), compound(N,A,AV)) :-
 	maplist(normalise_type, intersection(AV1,AV2), AV).
 
@@ -433,9 +434,6 @@ disj(intersection(_,X),X,X).
 %
 %	Unification hook for the type constraint.
 
-(type):attr_unify_hook(=(Value), Val) :- !,
-	get_attr(Val, type, Type),
-	call(Type, Value).
 (type):attr_unify_hook(Type, Val) :-
 	qtype_constraint(Type, Val).
 
