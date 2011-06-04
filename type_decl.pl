@@ -28,6 +28,7 @@ This module deals with Hindley-Milner declations  of types.
 	subtype_of/3,			% Type, Module, Super
 	type_alias/3.			% Type, Module, Alias
 
+
 %%	resolve_type(:Type, -QType) is det.
 %
 %	@tbd	Ok in mode (+,-), but not in other modes
@@ -88,14 +89,18 @@ expand_type((Type ---> Constructor), []) :-
 	\+ \+ (numbervars(Type, 0, _), \+ ground(Constructor)), !,
 	instantiation_error(Constructor).
 expand_type((TypeSpec ---> Constructor),
-	    [ (TestHead :- TestBody),
-	      type_decl:current_type(Type, Q, Representation)
+	    [ type_decl:current_type(Type, Q, Representation)
+	    | TestClauses
 	    ]) :- !,
 	prolog_load_context(module, M),
 	strip_module(M:TypeSpec, Q, Type),
 	type_represention(Constructor, Q, Representation),
-	test_body(Representation, X, TestBody),
-	extend(Q:Type, X, TestHead).
+	(   current_predicate(Q:Type/1)
+	->  TestClauses = []
+	;   TestClauses = [(TestHead :- TestBody)],
+	    test_body(Representation, X, TestBody),
+	    extend(Q:Type, X, TestHead)
+	).
 expand_type(MAlias = MType,
 	    [ type_decl:type_alias(Alias, QA, QT:QType),
 	      (AliasHead :- TypeHead)
@@ -120,17 +125,23 @@ expand_type(TypeSpec,
 %	@tbd	Module resolution is not correct
 
 type_represention((A0;B0), M, union(A,B)) :- !,
-	type_arg(M, A0, A),
+	type_repr(A0, M, A),
 	type_represention(B0, M, B).
 type_represention(A0, M, A) :-
+	type_repr(A0, M, A).
+
+type_repr({Type}, M, type(Q:Type)) :- !,
+	strip_module(M:Type, Q, Type).
+type_repr(Value, _, =(Value)) :-
+	atomic(Value), !.
+type_repr(A0, M, A) :-
 	type_arg(M, A0, A).
 
-type_arg(_, Value, =(Value)) :-
-	atomic(Value), !.
+type_arg(_, any, anything) :- !.
 type_arg(M, Var, type(M:Var)) :-
 	var(Var), !.
-type_arg(M, {Type}, type(Q:Type)) :- !,
-	strip_module(M:Type, Q, Type).
+type_arg(M, Type, type(M:Type)) :-
+	atom(Type), !.
 type_arg(M, Compound, compound(N,A,ArgTypes)) :-
 	compound(Compound),
 	functor(Compound, N, A),
@@ -180,7 +191,7 @@ qcallable(C) :- callable(C).
 
 type_constraint(Type, Value) :-
 	resolve_type(Type, QType),
-	qtype_constraint(QType, Value).
+	qtype_constraint(type(QType), Value).
 
 qtype_constraint(anything, _) :- !.
 qtype_constraint(nothing, _) :- !, fail.
@@ -210,6 +221,9 @@ qtype_constraint(intersection(T1,T2), Value) :-
 	qtype_constraint(T2, Value).
 qtype_constraint(not(T1), Value) :-
 	\+ qtype_constraint(T1, Value).
+qtype_constraint(type(M:T), Value) :-
+	current_type(T, M, Type),
+	qtype_constraint(Type, Value).
 
 
 %%	normalise_type(:TypeIn, :TypeOut) is det.
@@ -347,12 +361,26 @@ conj(=(V), not(primitive(Test)), Type) :-
 	->  Type = nothing
 	;   Type = =(V)
 	).
-conj(primitive(atom),primitive(is_list), =([])).
+conj(primitive(Test),Type,NewType) :-
+	phrase(primitive_values(Type), Values),
+	include(Test, Values, ValidValues),
+	value_union(ValidValues, NewType).
 conj(primitive(_),primitive(_), nothing).
 conj(not(=(_)), primitive(Test), primitive(Test)). % Simplified
 conj(compound(N,A,T), primitive(compound), compound(N,A,T)).
 conj(compound(N,A,AV1), compound(N,A,AV2), compound(N,A,AV)) :-
 	maplist(normalise_type, intersection(AV1,AV2), AV).
+
+primitive_values(=(X)) -->
+	[X].
+primitive_values(union(A,B)) -->
+	primitive_values(A),
+	primitive_values(B).
+
+value_union([], nothing).
+value_union([H|T], union(=(H),R)) :-
+	value_union(T, R).
+
 
 %%	simplify_disj(+UnionIn, -UnionOut) is det.
 %
@@ -417,17 +445,6 @@ extend(T, Var, T2) :-
 	append(List, [Var], List2),
 	T2 =.. List2.
 
-extend(_, T, _, _) :-
-	var(T), !,
-	instantiation_error(T).
-extend(Prefix, M:T, Var, M:T2) :-
-	extend(Prefix, T, Var, T2).
-extend(Prefix, T, Var, T2) :-
-	T =.. [Name|List],
-	append(List, [Var], List2),
-	atom_concat(Prefix, Name, PrefixName),
-	T2 =.. [PrefixName|List2].
-
 list_to_conj([], true).
 list_to_conj([G], G) :- !.
 list_to_conj([true|T], G) :- !,
@@ -442,3 +459,9 @@ list_to_conj([H|T], (H,G)) :-
 
 system:term_expansion((:- type(Type)), Clauses) :-
 	expand_type(Type, Clauses).
+
+
+		 /*******************************
+		 *	   BUILTIN TYPES	*
+		 *******************************/
+

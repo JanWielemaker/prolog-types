@@ -1,42 +1,30 @@
 :- use_module(type_decl).
 :- use_module(library(plunit)).
 
-:- type system:any.
-:- type system:atomic.
-:- type system:compound.
-:- type system:atom    < [system:atomic].
-:- type system:string  < [system:atomic].
-:- type system:number  < [system:atomic].
-:- type system:integer < [system:number].
-:- type system:float   < [system:number].
+:- type any.				% built-in
+:- type atom.
+:- type string.
+:- type integer.
+:- type float.
+:- type compound.
 
-:- type system:stream.
-:- type system:source_sink.
-:- type system:input_stream   < [stream].
-:- type system:output_stream  < [stream].
+:- type number ---> {integer} ; {float}.
+:- type atomic ---> {atom} ; {string} ; {number}.
+
+:- type input_stream.
+:- type output_stream.
+:- type stream ---> {input_stream} ; {output_stream}.
 
 
-:- type system:list    ---> [] ; [any|system:list].
-:- type system:list(X) ---> [] ; [X|system:list(X)].
+:- type system:list    ---> [] ; [any|list].
+:- type system:list(X) ---> [] ; [X|list(X)].
 
-:- type system:boolean < [system:atom] ---> true ; false.
-
-:- type system:segments(X) ---> X ; (system:segments(X))/(system:segments(X)).
-:- type system:file_path = system:segments(system:atom).
+:- type system:boolean ---> true ; false.
 
 system:any(_).
 system:stream(X) :- is_stream(X).
 system:input_stream(X) :- is_stream(X), stream_property(X, input).
 system:output_stream(X) :- is_stream(X), stream_property(X, output).
-system:stream_or_alias(X) :- is_stream(X) -> true ; atom(X).
-system:source_sink(X) :-
-	(   file_path(X)
-	->  true
-	;   compound(X),			% TBD: A/B
-	    functor(X, _, 1),
-	    arg(1, X, A),
-	    file_path(A)
-	).
 
 
 %	text stuff
