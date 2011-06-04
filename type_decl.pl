@@ -71,20 +71,6 @@ current_type(Type, Constructor) :-
 	resolve_type(Type, M:T),
 	current_type(T, M, Constructor).
 
-%%	constructor_value(+Constructor, -Value) is nondet.
-%
-%	Value is a concrete value that   appears in Constructor. Used to
-%	combine hard values and finding common subtypes.
-
-constructor_value((A;B), Value) :-
-	(   constructor_value(A, Value)
-	;   constructor_value(B, Value)
-	).
-constructor_value('$primitive', _) :- !, fail.
-constructor_value(Value, Value) :-
-	atomic(Value).
-
-
 %%	type(+Declaration)
 %
 %	This directive processes a type declaration. A type <T> produces
@@ -103,13 +89,11 @@ expand_type((Type ---> Constructor), []) :-
 	instantiation_error(Constructor).
 expand_type((TypeSpec ---> Constructor),
 	    [ QTestClause,
-	      type_decl:current_type(Type, Q, Constructor),
-	      (type_decl:type_constraint(Type, Q, X) :- ConstraintBody)
+	      type_decl:current_type(Type, Q, Constructor)
 	    ]) :- !,
 	prolog_load_context(module, M),
 	strip_module(M:TypeSpec, Q, Type),
 	test_clause(Type, Constructor, TestClause),
-	constraint_body(M:Type, Constructor, X, ConstraintBody),
 	qualify(M, Q, TestClause, QTestClause).
 expand_type(MAlias = MType,
 	    [ type_decl:type_alias(Alias, QA, QT:QType),
@@ -121,7 +105,7 @@ expand_type(MAlias = MType,
 	extend(QA:Alias, X, AliasHead),
 	extend(QT:QType, X, TypeHead).
 expand_type(TypeSpec,
-	    [ type_decl:current_type(Type, Q, '$primitive')
+	    [ type_decl:current_type(Type, Q, primitive(Q:Type))
 	    ]) :-
 	prolog_load_context(module, M),
 	strip_module(M:TypeSpec, Q, Type).
@@ -170,50 +154,8 @@ type_arg(Type, X, B) :-
 	extend(Type, X, B).
 
 
-%%	constraint_clause(+Type, +TypeConstructor, -Body) is det.
-%
-%	This clause is called from   type_constraint/2, iff the argument
-%	is a compound term.
-
-constraint_body(M:_Type, Constructor, X, Body) :-
-	constructor_constraint(Constructor, M, X, Body).
-
-constructor_constraint((C1;C2), M, X, B) :- !,
-	constraint_type(C1, M, X, B1),
-	constructor_constraint(C2, M, X, B2),
-	one_of(B1, B2, B).
-constructor_constraint(Type, M, X, B) :-
-	constraint_type(Type, M, X, B).
-
-one_of(true, B, B) :- !.
-one_of(B, true, B) :- !.
-one_of(B1, B2, (B1->true;B2)).
-
-constraint_type(Atom, _, _, true) :-
-	atomic(Atom), !.
-constraint_type(Var, M, X, B) :-
-	var(Var), !,
-	B = type_decl:type_constraint(M:Var, X).
-constraint_type(Term, M, X, (X = T2, TArgs)) :-
-	functor(Term, Name, Arity),
-	functor(T2, Name, Arity),
-	Term =.. [Name|TypeArgs],
-	T2   =.. [Name|Args],
-	maplist(constraint_type_arg(M), TypeArgs, Args, TArgList),
-	list_to_conj(TArgList, TArgs).
-
-constraint_type_arg(_, Any, _, B) :-
-	Any == any, !,
-	B = true.
-constraint_type_arg(M, Type, X, Call) :-
-	strip_module(M:Type, Q, PT),
-	Call = type_decl:type_constraint(Q:PT, X).
-
-
 :- meta_predicate
 	type_constraint(:,?).
-:- multifile
-	type_constraint/3.
 
 %%	type_constraint(:Type, +Value) is semidet.
 %
@@ -226,6 +168,8 @@ type_constraint(Type, Value) :-
 	resolve_type(Type, QType),
 	qtype_constraint(QType, Value).
 
+qtype_constraint(anything, _) :- !.
+qtype_constraint(nothing, _) :- !, fail.
 qtype_constraint(Type, Var) :-
 	var(Var), !,
 	(   get_attr(Var, type, Type2)
@@ -236,12 +180,23 @@ qtype_constraint(Type, Var) :-
 	    )
 	;   put_attr(Var, type, Type)
 	).
-qtype_constraint(system:any, _) :- !.
-qtype_constraint(M:Type, Value) :-
+qtype_constraint(primitive(Test), Value) :-
+	call(Test, Value).
+qtype_constraint(compound(N,A,ArgTypes), Value) :-
 	compound(Value), !,
-	type_constraint(Type, M, Value).
-qtype_constraint(Type, Value) :-
-	call(Type, Value).
+	functor(Value, N, A),
+	Value =.. [N|Args],
+	maplist(qtype_constraint, ArgTypes, Args).
+qtype_constraint(union(T1,T2), Value) :-
+	(   qtype_constraint(T1, Value)
+	;   qtype_constraint(T2, Value)
+	).
+qtype_constraint(intersection(T1,T2), Value) :-
+	qtype_constraint(T1, Value),
+	qtype_constraint(T2, Value).
+qtype_constraint(not(T1), Value) :-
+	\+ qtype_constraint(T1, Value).
+
 
 %%	normalise_type(:TypeIn, :TypeOut) is det.
 %
@@ -424,7 +379,7 @@ disj(intersection(_,X),X,X).
 	get_attr(Val, type, Type),
 	call(Type, Value).
 (type):attr_unify_hook(Type, Val) :-
-	type_constraint(Type, Val).
+	qtype_constraint(Type, Val).
 
 (type):attribute_goals(Var) -->
 	{ get_attr(Var, type, Type) },
