@@ -101,14 +101,15 @@ term.
   :- type atomic ---> {atom}    ; {number}.
   ==
 
-The {} can also be used as a mechanism for defining anonymous types, as
-in illustrated in the example below:
-
   ==
+  :- type write_option_attributes ---> ignore ; dots ; write ; portray.
+  :- type write_option_blobs ---> write ; portray.
+  :- type write_option_spacing ---> standard ; next_argument ; portray.
+
   :- type write_option --->
-	(   attributes({ignore;dots;write;portray})
+	(   attributes(write_option_attributes)
 	;   backquoted_string(boolean)
-	;   blobs((write;portray))
+	;   blobs(write_option_blobs)
 	;   character_escapes(boolean)
 	;   ignore_ops(boolean)
 	;   max_depth(integer)
@@ -119,11 +120,9 @@ in illustrated in the example below:
 	;   portray_goal(pred(any,list(write_option)))
 	;   priority(integer)
 	;   quoted(boolean)
-	;   spacing({standard;next_argument})
+	;   spacing(write_option_spacing)
 	).
   ==
-
-FIXME: Confusing?
 
 Internall, we also need type intersection and negation. Type
 intersection is used to establish a model for a non-typed clause. For
@@ -213,7 +212,7 @@ We recognise the following modes:
 
 ---+ Defining determinism
 
-  $ fail :
+  $ failure :
   Predicate always fails.
   $ det :
   Predicate always succeeds without a choice-point.
@@ -239,3 +238,4 @@ encouraging the user to provide signatures for these.
 ---++ Reporting errors
 
 
+@see Determinism analysis in the Mercury compiler
