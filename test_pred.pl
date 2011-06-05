@@ -12,9 +12,6 @@
 :- pred system:write(+output_stream, -any) is det.
 :- pred system:close(invalidate(stream)) is det.
 
-:- pred system:atom(@atom) is det.		% Base on current_type
-:- pred system:atom(@any)  is fail.
-
 :- pred system:true  is det.
 :- pred system:fail  is failure.
 :- pred system:false is failure.
@@ -51,6 +48,9 @@ atomic_codes(In, Out) :-
 	number_codes(In, Out).
 
 
+		 /*******************************
+		 *	PROTOTYPE CHECKING	*
+		 *******************************/
 
 :- meta_predicate
 	check(:, -).
@@ -83,6 +83,13 @@ check_body((A,B), M, Det) :- !,
 	).
 check_body(!, _, Det) :- !,
 	Det = cut.
+check_body(TypeTest, M, semidet) :-
+	functor(TypeTest, N, A),
+	succ(TA, A),
+	functor(Type, N, TA),
+	current_type(M:Type, _), !,
+	arg(A, TypeTest, Var),
+	type_constraint(M:Type, Var).
 check_body(A, M, Det) :-
 	(   goal_signature(M:A, Det)
 	*-> true
