@@ -169,8 +169,13 @@ goal_signature(M:Goal, Det) :-
 
 goal_arg(mode(I,Type), GoalArg) :-
 	type_constraint(Type, GoalArg),
+	term_attvars(GoalArg, AttVars),
+	\+ ( member(AttVar, AttVars),
+	     get_attr(AttVar, instantiated, invalid)
+	   ),
 	instantiated_call(I, Type, GoalArg),
 	instantiated_exit(I, GoalArg).
+
 
 		 /*******************************
 		 *	       MODES		*

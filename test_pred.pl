@@ -33,6 +33,13 @@ t1(library(In), Term) :-
 	read(Stream, Term),
 	close(Stream).
 
+t2(In, Term-Term2) :-
+	open(In, read, Stream),
+	read(Stream, Term),
+	close(Stream),
+	read(Stream, Term2).
+
+
 %:- pred to_codes(+atom, -codes) is det.
 %:- pred to_codes(+not(atom), -codes) is failure.
 
@@ -92,10 +99,7 @@ check_body(TypeTest, M, semidet) :-
 	arg(A, TypeTest, Var),
 	type_constraint(M:Type, Var).
 check_body(A, M, Det) :-
-	(   goal_signature(M:A, Det)
-	*-> true
-	;   existence_error(pred, M:A)		% TBD: Partial evaluation
-	).
+	goal_signature(M:A, Det).
 
 
 det_conj(_,	  cut,	   cut) :- !.
