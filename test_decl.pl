@@ -1,62 +1,73 @@
 :- use_module(type_decl).
-:- use_module(library(plunit)).
 
-:- type any.				% built-in
-:- type atom.
-:- type string.
-:- type integer.
-:- type float.
-:- type compound.
+system:stream(X)	:- is_stream(X).
+system:input_stream(X)	:- is_stream(X), stream_property(X, input).
+system:output_stream(X)	:- is_stream(X), stream_property(X, output).
+system:list(X)		:- is_list(X).
+system:char(X)		:- atom(X), atom_length(X,1).
+system:code(X)		:- integer(X), between(-1,0x10ffff,X).
+system:option(X)	:- (   X = (Name=_Value) -> atom(Name)
+			   ;   compound(X), functor(X, _, 1)
+			   ).
 
-:- type number ---> {integer} ; {float}.
-:- type atomic ---> {atom} ; {string} ; {number}.
+% disjoint primitives
+:- type system:atom.
+:- type system:string.
+:- type system:integer.
+:- type system:float.
+:- type system:compound.
+:- type system:input_stream.
+:- type system:output_stream.
+:- type system:option.
 
-:- type input_stream.
-:- type output_stream.
-:- type stream ---> {input_stream} ; {output_stream}.
+% derived primitives (domain restriction)
+:- type system:char.
+:- type system:code.
 
-
-:- type system:list    ---> [] ; [any|list].
-:- type system:list(X) ---> [] ; [X|list(X)].
-
+% union system types
+:- type system:number ---> {integer} ; {float}.
+:- type system:atomic ---> {atom} ; {string} ; {number}.
+:- type system:callable ---> {atom} ; {compound}.
+:- type system:stream ---> {input_stream} ; {output_stream}.
 :- type system:boolean ---> true ; false.
 
-system:any(_).
-system:stream(X) :- is_stream(X).
-system:input_stream(X) :- is_stream(X), stream_property(X, input).
-system:output_stream(X) :- is_stream(X), stream_property(X, output).
+% widely used terms
+:- type system:list ---> [] ; [any|list].
+:- type system:list(X) ---> [] ; [X|list(X)].
 
+:- type system:pair ---> any-any.
+:- type system:pair(X,Y) ---> X-Y.
 
-%	text stuff
+% widely used list types
+:- type system:codes   = list(code).
+:- type system:chars   = list(char).
+:- type system:options = list(option).
 
-system:char(X) :-
-	atom(X),
-	atom_length(X, 1).
-
-system:code(X) :-
-	integer(X),
-	between(0, 0x10ffff, X).		% Unicode range
-
-:- type system:char < [system:atom].
-:- type system:code < [system:integer].
-
-:- type system:codes = system:list(system:code).
-:- type system:chars = system:list(system:char).
+% aliases
+:- type system:module_name = atom.
 
 
 		 /*******************************
-		 *	       TESTS		*
+		 *    SYSTEM PREDICATE OPTIONS	*
 		 *******************************/
 
-:- begin_tests(types).
+:- type system:write_option_attributes ---> ignore ; dots ; write ; portray.
+:- type system:write_option_blobs ---> write ; portray.
+:- type system:write_option_spacing ---> standard ; next_argument ; portray.
 
-test(hier, true) :-
-	type_constraint(atomic, X),
-	type_constraint(integer, X),
-	X = 3.
-test(hier, fail) :-
-	type_constraint(atomic, X),
-	type_constraint(integer, X),
-	X = a.
-
-:- end_tests(types).
+:- type system:write_option --->
+      (   attributes(write_option_attributes)
+      ;   backquoted_string(boolean)
+      ;   blobs(write_option_blobs)
+      ;   character_escapes(boolean)
+      ;   ignore_ops(boolean)
+      ;   max_depth(integer)
+      ;   module(module_name)
+      ;   numbervars(boolean)
+      ;   partial(boolean)
+      ;   portray(boolean)
+%     ;   portray_goal(pred(any,list(write_option)))
+      ;   priority(integer)
+      ;   quoted(boolean)
+      ;   spacing(write_option_spacing)
+      ).

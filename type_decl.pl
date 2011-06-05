@@ -439,9 +439,9 @@ disjoint(compound(_,_,_), primitive(T)) :- T \== compound.
 %
 %	True if P3 is the primitive intersection between P1 and P2
 
-primitive_intersection(system:integer, system:code, system:code).
-primitive_intersection(system:atom, system:char, system:char).
-
+primitive_intersection(system:integer,	system:code,   system:code).
+primitive_intersection(system:atom,	system:char,   system:char).
+primitive_intersection(system:compound,	system:option, system:option).
 
 primitive_values(=(X)) -->
 	[X].
@@ -528,9 +528,4 @@ list_to_conj([H|T], (H,G)) :-
 
 system:term_expansion((:- type(Type)), Clauses) :-
 	type_expansion(Type, Clauses).
-
-
-		 /*******************************
-		 *	   BUILTIN TYPES	*
-		 *******************************/
 

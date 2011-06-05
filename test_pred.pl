@@ -16,8 +16,8 @@
 :- pred system:atom(@any)  is fail.
 
 :- pred system:true  is det.
-:- pred system:fail  is fail.
-:- pred system:false is fail.
+:- pred system:fail  is failure.
+:- pred system:false is failure.
 
 :- pred system:atom_codes(+atom, -codes) is det.
 :- pred system:atom_codes(-atom, +codes) is det.
