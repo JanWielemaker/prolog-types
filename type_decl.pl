@@ -35,6 +35,9 @@ This module deals with Hindley-Milner declations  of types.
 %	@tbd	Handling aliases here is dubious.
 %	@tbd	intersection, union
 
+resolve_type(M:T, Type) :-
+	var(T), !,
+	Type = M:T.
 resolve_type(M0:not(Type0), not(Type)) :- !,
 	(   functor(Type0, F, Arity), Arity>0
 	->  Type0 =.. [F|A1],
@@ -205,7 +208,7 @@ qcallable(C) :- callable(C).
 
 type_constraint(Type, Value) :-
 	resolve_type(Type, QType),
-	qtype_constraint(type(QType), Value).
+	qtype_constraint(QType, Value).
 
 qtype_constraint(anything, _) :- !.
 qtype_constraint(nothing, _) :- !, fail.
@@ -238,6 +241,9 @@ qtype_constraint(not(T1), Value) :-
 	\+ qtype_constraint(T1, Value).
 qtype_constraint(type(T), Value) :-
 	current_type(T, Type),
+	qtype_constraint(Type, Value).
+qtype_constraint(M:T, Value) :-
+	current_type(M:T, Type),
 	qtype_constraint(Type, Value).
 
 
@@ -283,6 +289,9 @@ normalise_type(TypeIn, TypeOut) :-
 
 expand_type(type(T), Expanded) :- !,
 	current_type(T, Exp0),
+	expand_type(Exp0, Expanded).
+expand_type(M:T, Expanded) :- !,
+	current_type(M:T, Exp0),
 	expand_type(Exp0, Expanded).
 expand_type(union(A0,B0), union(A,B)) :- !,
 	expand_type(A0, A),
@@ -375,12 +384,16 @@ list_intersection([H|T], intersection(H,R)) :-
 %%	conj(+T1,+T2,-T)
 %
 %	Simplification rules for intersection of  basic types. Note that
-%	we assume that primitive types are  disjoint. The only exception
-%	is that atom and list share the value [].
+%	we assume that primitive types are  disjoint.
 
 conj(X, X, X).
+conj(not(X), X, nothing).
 conj(anything, X, X).
 conj(nothing, _, nothing).
+conj(X, Y, nothing) :-
+	disjoint(X,Y).
+conj(not(X), Y, Y) :-
+	disjoint(X,Y).
 conj(=(V), primitive(Test), Type) :-
 	(   call(Test, V)
 	->  Type = =(V)
@@ -395,12 +408,18 @@ conj(primitive(Test),Type,NewType) :-
 	phrase(primitive_values(Type), Values),
 	include(Test, Values, ValidValues),
 	value_union(ValidValues, NewType).
-conj(primitive(_),primitive(_), nothing).
 conj(not(=(_)), primitive(Test), primitive(Test)). % Simplified
 conj(compound(N,A,T), primitive(compound), compound(N,A,T)).
-conj(compound(_,_,_), primitive(_), nothing).
 conj(compound(N,A,AV1), compound(N,A,AV2), compound(N,A,AV)) :-
 	maplist(normalise_type, intersection(AV1,AV2), AV).
+
+%%	disjoint(X,Y) is semidet.
+%
+%	True if X and Y are disjoint types.
+
+disjoint(primitive(X), primitive(Y)) :- dif(X,Y).
+disjoint(compound(_,_,_), primitive(T)) :- dif(T,compound).
+
 
 primitive_values(=(X)) -->
 	[X].
