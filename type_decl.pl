@@ -95,7 +95,8 @@ type_expansion((TypeSpec ---> Constructor),
 	prolog_load_context(module, M),
 	strip_module(M:TypeSpec, Q, Type),
 	type_represention(Constructor, Q, Representation),
-	(   current_predicate(Q:Type/1)
+	(   atom(Type),
+	    current_predicate(Q:Type/1)
 	->  TestClauses = []
 	;   TestClauses = [(TestHead :- TestBody)],
 	    test_body(Representation, X, TestBody),
@@ -137,16 +138,21 @@ type_repr(Value, _, =(Value)) :-
 type_repr(A0, M, A) :-
 	type_arg(M, A0, A).
 
-type_arg(_, any, anything) :- !.
-type_arg(M, Var, type(M:Var)) :-
+type_arg(_, Var, type(Var)) :-			% parametric type: do not qualify
 	var(Var), !.
+type_arg(_, any, anything) :- !.
 type_arg(M, Type, type(M:Type)) :-
 	atom(Type), !.
 type_arg(M, Compound, compound(N,A,ArgTypes)) :-
 	compound(Compound),
 	functor(Compound, N, A),
 	Compound =.. [N|ArgTypes0],
-	maplist(type_arg(M), ArgTypes0, ArgTypes).
+	maplist(compound_arg(M), ArgTypes0, ArgTypes).
+
+compound_arg(_, Var, type(Var)) :-		% parametric type: do not qualify
+	var(Var), !.
+compound_arg(_, any, anything) :- !.
+compound_arg(M, Type, type(M:Type)).
 
 
 %%	test_body(+Type, -Body) is det.
