@@ -33,6 +33,19 @@ Defined modes:
   This is introduced to avoid the common reuse of invalid handles, as
   illustrated below. Such code is mode and type-safe, not uncommon and
   wrong.
+
+Defined determinism classes:
+
+  $ failure :
+  Predicate always fails.
+  $ det :
+  Predicate always succeeds without a choice-point.
+  $ semidet :
+  Predicate fails or succeeds without a choice-point.
+  $ nondet :
+  Predicate produces 0 or more solutions.
+  $ multi :
+  Predicate produces 1 or more solutions.
 */
 
 :- multifile
