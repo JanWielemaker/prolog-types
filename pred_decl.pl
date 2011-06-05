@@ -154,6 +154,9 @@ head_arg(--, Type, GoalArg) :- !,
 head_arg(_, Type, GoalArg) :-
 	type_constraint(Type, GoalArg).
 
+set_instantated(How, Var) :-
+	put_attr(Var, instantiated, How).
+
 %%	goal_signature(:Goal, -Det) is nondet.
 %
 %	Signature is a current  mode+type   signature  with  determinism
@@ -165,8 +168,8 @@ goal_signature(M:Goal, Det) :-
 	maplist(goal_arg, Arguments, GoalArgs).
 
 goal_arg(mode(I,Type), GoalArg) :-
-	instantiated_call(I, Type, GoalArg),
 	type_constraint(Type, GoalArg),
+	instantiated_call(I, Type, GoalArg),
 	instantiated_exit(I, GoalArg).
 
 		 /*******************************
@@ -181,51 +184,87 @@ Instantiation status:
 	- argument		% Predicate argument, no signature
 
 Note that instantiated to type is the same   as ground iff type does not
-contain =any=.
+contain =any= (i.e., is not a _partial_ type).
+
+If an argument has instantiated=argument, we may add a mode attribute to
+indicate the desired mode. This is used to compute the modes if they are
+not known at entry.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-instantiated_call(++, Type, GoalArg) :- !,
-	(   get_attr(GoalArg, instantiated, ground)
-	->  true
-	;   ground(GoalArg)
-	->  true
-	;   \+ partial_type(Type)
-	->  type_test(Type, GoalArg)
-	;   get_attr(GoalArg, instantiated, argument)
-	->  put_attr(GoalArg, instantiated, ground)
-	).
-instantiated_call(+, Type, GoalArg) :- !,
-	(   get_attr(GoalArg, instantiated, Instantiated)
-	->  (   Instantiated == (type)
-	    ->	true
-	    ;	Instantiated == ground
-	    ->	true
-	    ;	Instantiated == argument
-	    ->	put_attr(GoalArg, Instantiated, type)
-	    )
-	;   type_test(Type, GoalArg)
-	).
+instantiated_call(++, _Type, GoalArg) :- !,
+	term_variables(GoalArg, Vars),
+	maplist(demand_ground, Vars).
+instantiated_call(+, _Type, GoalArg) :- !,
+	term_variables(GoalArg, Vars),
+	maplist(demand_instantiated, Vars).
 instantiated_call(invalidate, Type, GoalArg) :- !,
 	instantiated_call(+, Type, GoalArg).
 instantiated_call(--, _, GoalArg) :-
-	(   get_attr(GoalArg, instantiated, argument)
-	->  put_attr(GoalArg, instantiated, unbound)
-	;   var(GoalArg),
-	    \+ get_attr(GoalArg, instantiated, _)
-	).
+	demand_free(GoalArg).
 instantiated_call(_, _, _).
+
+%%	demand_ground(+Var) is semidet.
+%
+%	Demand that Var is ground. We can  do this if variable is passed
+%	in as an argument.
+
+demand_ground(Var) :-
+	get_attr(Var, instantiated, ground), !.
+demand_ground(Var) :-
+	get_attr(Var, instantiated, type),
+	get_attr(Var, type, Type),
+	\+ partial_type(Type), !.
+demand_ground(Var) :-
+	get_attr(Var, instantiated, argument),
+	put_attr(Var, mode, ++).
+
+%%	demand_instantiated(+Var) is semidet.
+%
+%	Demand Var to be instantiated up-to its type.
+
+demand_instantiated(Var) :-
+	get_attr(Var, instantiated, ground), !.
+demand_instantiated(Var) :-
+	get_attr(Var, instantiated, type), !.
+demand_instantiated(Var) :-
+	get_attr(Var, instantiated, argument),
+	put_attr(Var, mode, +).
+
+%%	demand_free(+Var) is semidet.
+%
+%	Demand Var to be free at call.  This   is  the  case if it is an
+%	entirely free variable or it is an   argument,  in which case we
+%	demand this argument to have mode --.
+
+demand_free(Var) :-
+	get_attr(Var, instantiated, argument),
+	put_attr(Var, mode, --).
+demand_free(Var) :-
+	\+ attvar(Var).
+
+
+%%	instantiated_exit(+Mode, +Arg)
 
 instantiated_exit(++, _) :- !.
 instantiated_exit(+, _) :- !.
 instantiated_exit(@, _) :- !.
 instantiated_exit(invalidate, GoalArg) :- !,
-	set_instantated(invalid, GoalArg).
+	invalidate(GoalArg).
 instantiated_exit(_, GoalArg) :-
 	term_attvars(GoalArg, AttVars),
-	maplist(set_instantated(type), AttVars).
+	maplist(output_var, AttVars).
 
-set_instantated(How, Var) :-
-	put_attr(Var, instantiated, How).
+output_var(Var) :-
+	get_attr(Var, instantiated, ground), !.
+output_var(Var) :-
+	put_attr(Var, instantiated, type),
+	put_attr(Var, mode, -).
+
+invalidate(Arg) :-
+	var(Arg), !,
+	put_attr(Arg, instantiated, invalid).
+invalidate(_).
+
 
 %%	partial_type(+Type) is semidet.
 %

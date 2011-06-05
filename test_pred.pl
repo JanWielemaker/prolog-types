@@ -33,7 +33,8 @@ t1(library(In), Term) :-
 	read(Stream, Term),
 	close(Stream).
 
-%:- pred to_codes(+any, -codes) is semidet.
+%:- pred to_codes(+atom, -codes) is det.
+%:- pred to_codes(+not(atom), -codes) is failure.
 
 to_codes(In, Out) :-
 	atom(In),
