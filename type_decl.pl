@@ -3,6 +3,7 @@
 	    current_type/2,		% :Name, ?Definition
 	    resolve_type/2,		% :TypeIn, -TypeOut
 	    type_constraint/2,		% +Type, +Value
+	    type_test/2,		% +Type, +Value
 	    normalise_type/2,		% +TypeIn, -TypeOut
 	    op(1150, fx, type),
 	    op(1130, xfx, --->)
@@ -20,8 +21,9 @@ This module deals with Hindley-Milner declations  of types.
 
 :- meta_predicate
 	current_type(:, ?),
-	subtype_of(:, :),
-	resolve_type(:, -).
+	resolve_type(:, -),
+	type_constraint(:, ?),
+	type_test(:, ?).
 
 :- multifile
 	current_type/3,			% Type, Module, Constructor
@@ -36,6 +38,7 @@ resolve_type(M:T, Type) :-
 	var(T), !,
 	Type = M:T.
 resolve_type(_:(=(Value)), =(Value)) :- !.
+resolve_type(_:any, anything) :- !.
 resolve_type(M0:not(Type0), not(Type)) :- !,
 	resolve_primive_type_arg(M0, Type0, Type).
 resolve_type(M0:union(A0,B0), union(A,B)) :- !,
@@ -193,7 +196,7 @@ test_body(=(Value), X, (X == Value)).
 test_body(type(Type), X, Goal) :-
 	(   qcallable(Type)
 	->  extend(Type, X, Goal)
-	;   Goal = call(Type, X)
+	;   Goal = type_test(Type, X)
 	).
 test_body(compound(Name,Arity,ArgTypes), X, (nonvar(X),X=T2,TArgs)) :-
 	functor(T2, Name, Arity),
@@ -211,9 +214,9 @@ qcallable(C) :- callable(C).
 %%	type_constraint(:Type, +Value) is semidet.
 %
 %	Create a contraint that limits Value to  be of Type. If Value is
-%	ground, this is the same call(Type,Value).   If Value is partial
-%	with respect to Type,  create   constraint(s)  on  the remaining
-%	variable(s) that establish the type relation.
+%	ground, this is the  same   type_test(Type,Value).  If  Value is
+%	partial with respect  to  Type,   create  constraint(s)  on  the
+%	remaining variable(s) that establish the type relation.
 
 type_constraint(Type, Value) :-
 	resolve_type(Type, QType),
@@ -233,7 +236,7 @@ qtype_constraint(Type, Var) :-
 	).
 qtype_constraint(=(Value), Value).
 qtype_constraint(primitive(Test), Value) :-
-	call(Test, Value).
+	type_test(Test, Value).
 qtype_constraint(compound(N,A,ArgTypes), Value) :-
 	compound(Value), !,
 	functor(Value, N, A),
@@ -254,6 +257,16 @@ qtype_constraint(type(T), Value) :-
 qtype_constraint(M:T, Value) :-
 	current_type(M:T, Type),
 	qtype_constraint(Type, Value).
+
+
+%%	type_test(:Type, +Value) is semidet.
+%
+%	True if Value satisfies type.
+
+type_test(_:Any, _) :-
+	Any == any, !.
+type_test(Type, Value) :-
+	call(Type, Value).
 
 
 %%	normalise_type(:TypeIn, :TypeOut) is det.
@@ -404,12 +417,12 @@ conj(X, Y, nothing) :-
 conj(not(X), Y, Y) :-
 	disjoint(X,Y).
 conj(=(V), primitive(Test), Type) :-
-	(   call(Test, V)
+	(   type_test(Test, V)
 	->  Type = =(V)
 	;   Type = nothing
 	).
 conj(=(V), not(primitive(Test)), Type) :-
-	(   call(Test, V)
+	(   type_test(Test, V)
 	->  Type = nothing
 	;   Type = =(V)
 	).

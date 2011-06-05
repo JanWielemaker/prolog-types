@@ -76,7 +76,7 @@ check(M:Head, Det) :-
 
 check_body((A,B), M, Det) :- !,
 	check_body(A, M, DetA),
-	(   DetA == fail
+	(   DetA == failure
 	->  Det = DetA
 	;   check_body(B, M, DetB),
 	    det_conj(DetA, DetB, Det)

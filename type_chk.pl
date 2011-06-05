@@ -1,7 +1,8 @@
 :- module(type_chk,
-	  [
+	  [ check_goal/1
 	  ]).
 :- use_module(type_decl).
+:- use_module(pred_decl).
 
 /** <module> The type checker
 
@@ -17,9 +18,17 @@ variables.  It uses several attributes:
 	If available, the name of the variable.  Used for feedback.
 */
 
+:- meta_predicate
+	check_goal(:).
+
+check_goal(Goal) :-
+	clause(Goal, Body),
+	Goal = M:Head,
+	check_clause((Head:-Body), M, []).
+
 check_clause((Head :- Body), M, Options) :-
 	variable_names(Options),
-	signature(M:Head),
+	head_signature(M:Head, _Det),
 	check_body(Body, M).
 
 
@@ -35,5 +44,5 @@ check_body((A,B), M) :- !,
 	check_body(A, M),
 	check_body(B, M).
 check_body(Goal, M) :-
-	body_signature(M:Goal).
+	goal_signature(M:Goal, _Det).
 

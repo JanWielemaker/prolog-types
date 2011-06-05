@@ -190,7 +190,7 @@ instantiated_call(++, Type, GoalArg) :- !,
 	;   ground(GoalArg)
 	->  true
 	;   \+ partial_type(Type)
-	->  call(Type, GoalArg)
+	->  type_test(Type, GoalArg)
 	;   get_attr(GoalArg, instantiated, argument)
 	->  put_attr(GoalArg, instantiated, ground)
 	).
@@ -203,7 +203,7 @@ instantiated_call(+, Type, GoalArg) :- !,
 	    ;	Instantiated == argument
 	    ->	put_attr(GoalArg, Instantiated, type)
 	    )
-	;   call(Type, GoalArg)
+	;   type_test(Type, GoalArg)
 	).
 instantiated_call(invalidate, Type, GoalArg) :- !,
 	instantiated_call(+, Type, GoalArg).
@@ -234,7 +234,7 @@ set_instantated(How, Var) :-
 partial_type(Type) :-
 	current_type(Type, Constructor),
 	\+ (  sub_term(Any, Constructor),
-	      Any == any
+	      Any == anything
 	   ).
 
 
