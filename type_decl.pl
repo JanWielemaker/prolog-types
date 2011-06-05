@@ -154,7 +154,7 @@ type_represention((A0;B0), M, union(A,B)) :- !,
 type_represention(A0, M, A) :-
 	type_repr(A0, M, A).
 
-type_repr({Type}, M, type(Q:Type)) :- !,
+type_repr({Type}, M, Q:Type) :- !,
 	strip_module(M:Type, Q, Type).
 type_repr(Value, _, =(Value)) :-
 	atomic(Value), !.
@@ -164,7 +164,7 @@ type_repr(A0, M, A) :-
 type_arg(_, Var, type(Var)) :-			% parametric type: do not qualify
 	var(Var), !.
 type_arg(_, any, anything) :- !.
-type_arg(M, Type, type(M:Type)) :-
+type_arg(M, Type, M:Type) :-
 	atom(Type), !.
 type_arg(M, Compound, compound(N,A,ArgTypes)) :-
 	compound(Compound),
@@ -489,8 +489,8 @@ union_list(A) -->
 	[A].
 
 list_union([One], One) :- !.
-list_union([H|T], intersection(H,R)) :-
-	list_intersection(T, R).
+list_union([H|T], union(H,R)) :-
+	list_union(T, R).
 
 disj(X, X, X).
 disj(anything, _, anything).
