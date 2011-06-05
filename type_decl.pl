@@ -28,23 +28,22 @@ This module deals with Hindley-Milner declations  of types.
 	subtype_of/3,			% Type, Module, Super
 	type_alias/3.			% Type, Module, Alias
 
-
 %%	resolve_type(:Type, -QType) is det.
 %
-%	@tbd	Ok in mode (+,-), but not in other modes
-%	@tbd	Handling aliases here is dubious.
-%	@tbd	intersection, union
+%	Resolve module qualifications in a type declaration.
 
 resolve_type(M:T, Type) :-
 	var(T), !,
 	Type = M:T.
+resolve_type(_:(=(Value)), =(Value)) :- !.
 resolve_type(M0:not(Type0), not(Type)) :- !,
-	(   functor(Type0, F, Arity), Arity>0
-	->  Type0 =.. [F|A1],
-	    maplist(resolve_type(M0), A1, A),
-	    Type  =.. [F|A]
-	;   qualify_outer_type(M0:Type0, Type)
-	).
+	resolve_primive_type_arg(M0, Type0, Type).
+resolve_type(M0:union(A0,B0), union(A,B)) :- !,
+	resolve_primive_type_arg(M0, A0, A),
+	resolve_primive_type_arg(M0, B0, B).
+resolve_type(M0:intersection(A0,B0), intersection(A,B)) :- !,
+	resolve_primive_type_arg(M0, A0, A),
+	resolve_primive_type_arg(M0, B0, B).
 resolve_type(M0:Type0, M:Type) :-
 	qualify_outer_type(M0:Type0, M:Type1),
 	(   functor(Type1, F, Arity), Arity>0
@@ -53,6 +52,16 @@ resolve_type(M0:Type0, M:Type) :-
 	    Type  =.. [F|A]
 	;   Type = Type1
 	).
+
+resolve_primive_type_arg(M, Type0, Type) :-
+	functor(Type0, F, Arity),
+	Arity > 0, !,
+	Type0 =.. [F|A1],
+	maplist(resolve_type(M), A1, A),
+	Type  =.. [F|A].
+resolve_primive_type_arg(M, Type0, Type) :-
+	qualify_outer_type(M:Type0, Type).
+
 
 resolve_type(M0, Type0, Type) :-
 	strip_module(M0:Type0, M1, Type1),
@@ -404,12 +413,15 @@ conj(=(V), not(primitive(Test)), Type) :-
 	->  Type = nothing
 	;   Type = =(V)
 	).
+conj(primitive(P1), primitive(P2), T) :-
+	primitive_intersection(P1, P2, P3),
+	T = primitive(P3).
 conj(primitive(Test),Type,NewType) :-
 	phrase(primitive_values(Type), Values),
 	include(Test, Values, ValidValues),
 	value_union(ValidValues, NewType).
 conj(not(=(_)), primitive(Test), primitive(Test)). % Simplified
-conj(compound(N,A,T), primitive(compound), compound(N,A,T)).
+conj(compound(N,A,T), primitive(system:compound), compound(N,A,T)).
 conj(compound(N,A,AV1), compound(N,A,AV2), compound(N,A,AV)) :-
 	maplist(normalise_type, intersection(AV1,AV2), AV).
 
@@ -417,8 +429,18 @@ conj(compound(N,A,AV1), compound(N,A,AV2), compound(N,A,AV)) :-
 %
 %	True if X and Y are disjoint types.
 
-disjoint(primitive(X), primitive(Y)) :- dif(X,Y).
-disjoint(compound(_,_,_), primitive(T)) :- dif(T,compound).
+disjoint(primitive(X), primitive(Y)) :-
+	X \== Y,
+	\+ primitive_intersection(X,Y,_),
+	\+ primitive_intersection(Y,X,_).
+disjoint(compound(_,_,_), primitive(T)) :- T \== compound.
+
+%%	primitive_intersection(P1,P2,P3)
+%
+%	True if P3 is the primitive intersection between P1 and P2
+
+primitive_intersection(system:integer, system:code, system:code).
+primitive_intersection(system:atom, system:char, system:char).
 
 
 primitive_values(=(X)) -->
