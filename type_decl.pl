@@ -33,7 +33,15 @@ This module deals with Hindley-Milner declations  of types.
 %
 %	@tbd	Ok in mode (+,-), but not in other modes
 %	@tbd	Handling aliases here is dubious.
+%	@tbd	intersection, union
 
+resolve_type(M0:not(Type0), not(Type)) :- !,
+	(   functor(Type0, F, Arity), Arity>0
+	->  Type0 =.. [F|A1],
+	    maplist(resolve_type(M0), A1, A),
+	    Type  =.. [F|A]
+	;   qualify_outer_type(M0:Type0, Type)
+	).
 resolve_type(M0:Type0, M:Type) :-
 	qualify_outer_type(M0:Type0, M:Type1),
 	(   functor(Type1, F, Arity), Arity>0
