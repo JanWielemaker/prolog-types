@@ -13,21 +13,26 @@
 
 /** <module> Predicate signatures
 
-Mode proposal
+Defined modes:
 
-    $ +(Type) :
-    Argument satifies Type at call.
-    $ -(Type) :
-    Argument satisfies Type at exit.  Argument is steadfast.
-    $ ?(Type) :
-    Unknown.  May do anything but argument satisfies Type at exit.
-    $ --(Type) :
-    Argument satisfies Type at exit.  Argument must be unbound at entry.
-    $ @(Type) :
-    Argument is not touched, but Argument satisfies Type at exit.  This
-    is used for type-checks.
-    $ invalidate(Type)
-    Argument must be of Type at call and may not be accessed afterwards.
+  $ +(Type) :
+  Argument satifies Type at call.
+  $ ++(Type) :
+  Argument satifies Type and is ground at call.
+  $ -(Type) :
+  Argument satisfies Type at exit.  Argument is steadfast.
+  $ ?(Type) :
+  Unknown.  May do anything but argument satisfies Type at exit.
+  $ --(Type) :
+  Argument satisfies Type at exit.  Argument must be unbound at entry.
+  $ @(Type) :
+  Argument is not touched, but Argument satisfies Type at exit.  This
+  is used for type-checks.
+  $ invalidate(Type)
+  Argument must be of Type at call and may not be accessed afterwards.
+  This is introduced to avoid the common reuse of invalid handles, as
+  illustrated below. Such code is mode and type-safe, not uncommon and
+  wrong.
 */
 
 :- multifile
