@@ -1,7 +1,7 @@
 :- module(pred_decl,
 	  [ (pred)/1,			% +Signature
 	    signature/3,		% :Goal, -ModeTypeList, -Det
-	    goal_signature/2,		% :Goal, -Det
+	    goal_signature/3,		% :Goal, -Annot, -Det
 	    head_signature/2,		% :Goal, -Det
 	    op(1150, fx, pred),		% signature declaration
 	    op(200, fy, --),		% argument mode: must be unbound
@@ -54,7 +54,8 @@ Defined determinism classes:
 :- meta_predicate
 	signature(:,-,-),
 	head_signature(:,-),
-	goal_signature(:,-).
+	goal_signature(:,-,-).
+
 
 %%	pred(+Signature)
 %
@@ -72,22 +73,21 @@ pred_clauses(G, M) -->
 	{ pred_clause(G, M, Q, Gen, Arguments, Det)
 	}.
 
-pred_clause(GoalDet, M, Q, Gen, Arguments, Det) :- !,
+pred_clause(GoalDet, M, Q, Gen, ArgDecl, Det) :- !,
 	goal_det(GoalDet, MGoal, Det),
 	strip_module(M:MGoal, Q, Goal),
 	functor(Goal, F, A),
 	functor(Gen, F, A),
-	Goal =.. [F|Args],
-	maplist(mode_arg(M), Args, Arguments).
+	map_term_arguments(mode_arg(M), Goal, ArgDecl).
 
 goal_det(Goal is Det, Goal, Det) :- !.
 goal_det(Goal,        Goal, nondet).		% Or unknown/var?
 
-mode_arg(M, Spec, mode(I,Q:Type)) :-
+mode_arg(M, _I, Spec, mode(I,Q:Type)) :-
 	mode_specifier(Spec, I, Type0), !,
 	strip_module(M:Type0, M1, Type1),
 	resolve_type(M1:Type1, Q:Type).
-mode_arg(M, Type0, mode(?,Q:Type)) :-
+mode_arg(M, _I,	Type0, mode(?,Q:Type)) :-
 	strip_module(M:Type0, M1, Type1),
 	resolve_type(M1:Type1, Q:Type).
 
@@ -105,20 +105,20 @@ mode_specifier(invalidate(Type), invalidate, Type).
 		 *	     SIGNATURES		*
 		 *******************************/
 
-%%	signature(:Goal, -Arguments, -Det) is nondet.
+%%	signature(:Goal, -ArgDecl, -Det) is nondet.
 %
-%	True if Arguments provide the   moded argument specification for
-%	Goal and Det is the determinism   indicator.  Note that any gaol
+%	True if ArgDecl provide  the   moded  argument specification for
+%	Goal and Det is the determinism   indicator.  Note that any goal
 %	may have 0 or more signatures.
 
-signature(M:Goal, Arguments, Det) :-
+signature(M:Goal, ArgDecl, Det) :-
 	functor(Goal, F, A),
 	functor(Gen, F, A),
 	(   predicate_property(M:Goal, imported_from(Q))
 	->  true
 	;   Q = M
 	),
-	current_signature(Gen, Q, Arguments, Det).
+	current_signature(Gen, Q, ArgDecl, Det).
 
 
 %%	head_signature(:Goal, -Det) is nondet.
@@ -128,53 +128,127 @@ signature(M:Goal, Arguments, Det) :-
 %	and provides the determinism information about the predicate.
 
 head_signature(M:Goal, Det) :-
-	(   signature(M:Goal, Arguments, Det),
-	    Goal =.. [_|GoalArgs],
-	    maplist(head_arg, Arguments, GoalArgs)
+	(   signature(M:Goal, ArgDecl, Det),
+	    map_term_arguments(head_arg, ArgDecl, Goal)
 	*-> true
 	;   term_variables(Goal, Vars),
 	    maplist(set_instantated(argument), Vars)
 	).
 
-head_arg(mode(I,T), GoalArg) :-
-	head_arg(I, T, GoalArg).
+head_arg(AI, mode(I,T), GoalArg) :-
+	head_arg(I, T, GoalArg, AI).
 
-head_arg(++, Type, GoalArg) :- !,
+head_arg(++, Type, GoalArg, _AI) :- !,
 	type_constraint(Type, GoalArg),
 	term_variables(GoalArg, AttVars),
 	maplist(set_instantated(ground), AttVars).
-head_arg(+, Type, GoalArg) :- !,
+head_arg(+, Type, GoalArg, _AI) :- !,
 	type_constraint(Type, GoalArg),
 	term_attvars(GoalArg, AttVars),
 	maplist(set_instantated(type), AttVars).
-head_arg(--, Type, GoalArg) :- !,
+head_arg(--, Type, GoalArg, _AI) :- !,
 	type_constraint(Type, GoalArg),
 	var(GoalArg),
 	set_instantated(unbound, GoalArg).
-head_arg(_, Type, GoalArg) :-
+head_arg(_, Type, GoalArg, _AI) :-
 	type_constraint(Type, GoalArg).
 
 set_instantated(How, Var) :-
 	put_attr(Var, instantiated, How).
 
-%%	goal_signature(:Goal, -Det) is nondet.
+%%	goal_signature(:Goal, -Annot, -Det) is nondet.
 %
 %	Signature is a current  mode+type   signature  with  determinism
 %	information for Goal.  Goal may be partially instantiated.
 
-goal_signature(M:Goal, Det) :-
-	signature(M:Goal, Arguments, Det),
-	Goal =.. [_|GoalArgs],
-	maplist(goal_arg, Arguments, GoalArgs).
+goal_signature(M:Goal, [Det|ArgAnnot], Det) :-
+	signature(M:Goal, ArgDecl, Det),
+	map_term_arguments(goal_arg, ArgDecl, Goal, AnnotTerm),
+	AnnotTerm =.. [_|Annot],
+	append(Annot, ArgAnnot).
 
-goal_arg(mode(I,Type), GoalArg) :-
-	type_constraint(Type, GoalArg),
-	term_attvars(GoalArg, AttVars),
-	\+ ( member(AttVar, AttVars),
-	     get_attr(AttVar, instantiated, invalid)
-	   ),
-	instantiated_call(I, Type, GoalArg),
-	instantiated_exit(I, GoalArg).
+goal_arg(AI, mode(I,Type), GoalArg, Annot) :-
+	(   type_constraint(Type, GoalArg)
+	->  term_attvars(GoalArg, AttVars),
+	    (   member(AttVar, AttVars),
+		get_attr(AttVar, instantiated, invalid)
+	    ->  Annot = [error(invalid_handle(GoalArg), argument(AI))]
+	    ;   (   instantiated_call(I, Type, GoalArg)
+		->  instantiated_exit(I, GoalArg),
+		    Annot = []
+		;   Annot = [error(mode_error(I, GoalArg), argument(AI))]
+		)
+	    )
+	;   Annot = [error(type_error(Type, GoalArg), argument(AI))]
+	).
+
+
+%%	map_term_arguments(:Map, ?Term).
+%%	map_term_arguments(:Map, ?Term1, ?Term2).
+%
+%	Maps the arguments of Term1 to Term2.   Map  is called as below,
+%	where Index is the index of the  argument, and Arg1 and Arg2 are
+%	arguments from the terms. Both terms   must have the same arity.
+%	One of the terms can be a variable.
+%
+%	  ==
+%	  call(Map, Index, Arg1, Arg2)
+%	  ==
+
+:- meta_predicate
+	map_term_arguments(2,+),
+	map_term_arguments(3,?,?),
+	map_term_arguments(4,?,?,?).
+
+map_term_arguments(Check, Term) :-
+	functor(Term, _, A),
+	map_term_arguments1(Check, 1, A, Term).
+
+map_term_arguments1(Check, I, A, Term) :-
+	I =< A, !,
+	arg(I, Term, Arg),
+	call(Check, I, Arg),
+	succ(I, I2),
+	map_term_arguments1(Check, I2, A, Term).
+map_term_arguments1(_, _, _, _).
+
+map_term_arguments(Check, Term1, Term2) :-
+	same_arity([Term1, Term2], A),
+	map_term_arguments2(Check, 1, A, Term1, Term2).
+
+map_term_arguments2(Check, I, A, Term1, Term2) :-
+	I =< A, !,
+	arg(I, Term1, Arg1),
+	arg(I, Term2, Arg2),
+	call(Check, I, Arg1, Arg2),
+	succ(I, I2),
+	map_term_arguments2(Check, I2, A, Term1, Term2).
+map_term_arguments2(_, _, _, _, _).
+
+map_term_arguments(Check, Term1, Term2, Term3) :-
+	same_arity([Term1, Term2, Term3], A),
+	map_term_arguments3(Check, 1, A, Term1, Term2, Term3).
+
+map_term_arguments3(Check, I, A, Term1, Term2, Term3) :-
+	I =< A, !,
+	arg(I, Term1, Arg1),
+	arg(I, Term2, Arg2),
+	arg(I, Term3, Arg3),
+	call(Check, I, Arg1, Arg2, Arg3),
+	succ(I, I2),
+	map_term_arguments3(Check, I2, A, Term1, Term2, Term3).
+map_term_arguments3(_, _, _, _, _, _).
+
+same_arity(Terms, A) :-
+	member(T, Terms),
+	nonvar(T), !,
+	functor(T, N, A),
+	maplist(name_arity(N,A), Terms).
+
+name_arity(N, A, T) :-
+	functor(T, N, A), !.
+name_arity(_, A, T) :-
+	functor(T, _, A), !.
 
 
 		 /*******************************
@@ -195,6 +269,8 @@ If an argument has instantiated=argument, we may add a mode attribute to
 indicate the desired mode. This is used to compute the modes if they are
 not known at entry.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+%%	instantiated_call(+Mode, +Type, +Arg) is semidet.
 
 instantiated_call(++, _Type, GoalArg) :- !,
 	term_variables(GoalArg, Vars),
@@ -248,7 +324,7 @@ demand_free(Var) :-
 	\+ attvar(Var).
 
 
-%%	instantiated_exit(+Mode, +Arg)
+%%	instantiated_exit(+Mode, +Arg) is det.
 
 instantiated_exit(++, _) :- !.
 instantiated_exit(+, _) :- !.

@@ -37,7 +37,7 @@ t2(In, Term-Term2) :-
 	open(In, read, Stream),
 	read(Stream, Term),
 	close(Stream),
-	read(Stream, Term2).
+	read(Stream, Term2).			% error
 
 
 %:- pred to_codes(+atom, -codes) is det.
@@ -61,45 +61,57 @@ atomic_codes(In, Out) :-
 		 *******************************/
 
 :- meta_predicate
-	check(:, -).
+	check(:, -, -).
 
-%%	check(:Goal, Det) is nondet.
+%%	check(:Goal, -Annot, Det) is nondet.
 %
 %	Check type, mode and determinism for Goal.
 
-check(M:Head, Det) :-
+check(M:Head, Annot, Det) :-
 	(   predicate_property(M:Head, imported_from(Q))
 	->  true
 	;   Q = M
 	),
 	clause(Q:Head, Body),
 	head_signature(Q:Head, _Det),
-	check_body(Body, Q, Det).
+	check_body(Body, Q, Annot, Det).
 
-%%	check_body(+Goal, +Module, -Determinism) is nondet.
+check_body(Body, M, Annot, Det) :-
+	check_conjunction(Body, M, Annot, Det).
+
+
+%%	check_conjunction(+Body, +Module, -Annot, -Determinism) is nondet.
 %
-%	@tbd	Deal with cycles. Something is a cycle if we find the
-%		same goal with the same argument types, but I fear it
-%		is not that simple.
+%	Check a conjunction of goals. Annot  has the same goal structure
+%	as the input, and holds  annotations   about  the goals in Body.
+%	Each annotation is a list. Elements of the list include.
+%
+%	  * Determinism of the sub-goal (normal determinism indicators)
+%	  * Type error as argtype(ArgN, Var, Expected, Found)
+%	  * not_reached for code that cannot be reached
 
-check_body((A,B), M, Det) :- !,
-	check_body(A, M, DetA),
+check_conjunction((A,B), M, (CA,CB), Det) :- !,
+	check_conjunction(A, M, CA, DetA),
 	(   DetA == failure
-	->  Det = DetA
-	;   check_body(B, M, DetB),
+	->  Det = DetA,
+	    CB = [not_reached]
+	;   check_conjunction(B, M, CB, DetB),
 	    det_conj(DetA, DetB, Det)
 	).
-check_body(!, _, Det) :- !,
+check_conjunction(!, _, [cut], Det) :- !,
 	Det = cut.
-check_body(TypeTest, M, semidet) :-
+check_conjunction(TypeTest, M, [semidet], Det) :- % type-test
 	functor(TypeTest, N, A),
 	succ(TA, A),
 	functor(Type, N, TA),
 	current_type(M:Type, _), !,
 	arg(A, TypeTest, Var),
-	type_constraint(M:Type, Var).
-check_body(A, M, Det) :-
-	goal_signature(M:A, Det).
+	(   type_constraint(M:Type, Var),
+	    Det = det
+	;   Det = failure
+	).
+check_conjunction(A, M, CA, Det) :-
+	goal_signature(M:A, CA, Det).
 
 
 det_conj(_,	  cut,	   cut) :- !.
