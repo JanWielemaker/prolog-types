@@ -107,7 +107,8 @@ check_conjunction(TypeTest, M, [semidet], Det) :- % type-test
 	current_type(M:Type, _), !,
 	arg(A, TypeTest, Var),
 	(   type_constraint(M:Type, Var),
-	    Det = det
+	    Det = det,
+	    pred_decl:demand_mode(+, Var)
 	;   type_constraint(not(M:Type), Var),
 	    Det = failure
 	).

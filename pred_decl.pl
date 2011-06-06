@@ -185,6 +185,7 @@ goal_arg(AI, mode(I,Type), GoalArg, Annot) :-
 
 %%	map_term_arguments(:Map, ?Term).
 %%	map_term_arguments(:Map, ?Term1, ?Term2).
+%%	map_term_arguments(:Map, ?Term1, ?Term2, Term3).
 %
 %	Maps the arguments of Term1 to Term2.   Map  is called as below,
 %	where Index is the index of the  argument, and Arg1 and Arg2 are
@@ -297,7 +298,7 @@ demand_ground(Var) :-
 	\+ partial_type(Type), !.
 demand_ground(Var) :-
 	get_attr(Var, instantiated, argument),
-	put_attr(Var, mode, ++).
+	demand_mode(++, Var).
 
 %%	demand_instantiated(+Var) is semidet.
 %
@@ -309,7 +310,7 @@ demand_instantiated(Var) :-
 	get_attr(Var, instantiated, type), !.
 demand_instantiated(Var) :-
 	get_attr(Var, instantiated, argument),
-	put_attr(Var, mode, +).
+	demand_mode(+, Var).
 
 %%	demand_free(+Var) is semidet.
 %
@@ -319,7 +320,7 @@ demand_instantiated(Var) :-
 
 demand_free(Var) :-
 	get_attr(Var, instantiated, argument),
-	put_attr(Var, mode, --).
+	demand_mode(--, Var).
 demand_free(Var) :-
 	\+ attvar(Var).
 
@@ -339,12 +340,29 @@ output_var(Var) :-
 	get_attr(Var, instantiated, ground), !.
 output_var(Var) :-
 	put_attr(Var, instantiated, type),
-	put_attr(Var, mode, -).
+	demand_mode(-, Var).
 
 invalidate(Arg) :-
 	var(Arg), !,
 	put_attr(Arg, instantiated, invalid).
 invalidate(_).
+
+%%	demand_mode(+Mode, +Var) is semidet.
+%
+%	Update the mode property for a new body goal.
+
+demand_mode(Mode, Var) :-
+	get_attr(Var, mode, OldMode), !,
+	update_mode(OldMode, Mode, NewMode),
+	(   NewMode == Mode
+	->  true
+	;   put_attr(Var, mode, NewMode)
+	).
+demand_mode(Mode, Var) :-
+	put_attr(Var, mode, Mode).
+
+update_mode(+, --, _) :- !, fail.
+update_mode(M, _, M).
 
 
 %%	partial_type(+Type) is semidet.
