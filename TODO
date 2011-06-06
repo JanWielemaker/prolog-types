@@ -12,11 +12,6 @@ if we cannot rejoin them the  possible   flow-control  paths  we need to
 analyse will explode.
 
 
-
-
-
-
-
 ---++++ If-then-else (->;)
 
 ---++++ Not (\+)
@@ -31,6 +26,8 @@ Is the same as (Cond->fail;true)
 ---+++ Multiple clauses
 
 ---+++ Recursion
+
+---+++ Meta-predicates: the pred(Type1, ...) type
 
 ---+++ Dealing with sub-goals that have no signature
 

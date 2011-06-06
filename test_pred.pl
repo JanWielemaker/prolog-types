@@ -79,6 +79,20 @@ check(M:Head, Annot, Det) :-
 check_body(Body, M, Annot, Det) :-
 	check_conjunction(Body, M, Annot, Det).
 
+%%	error_free_models(+Body, +Module, -Models) is det.
+%
+%	Models is a list of model(Goal,  M,   Det)  models for Body that
+%	contain no errors.
+
+error_free_models(Body, M, Models) :-
+	findall(Model, error_free_model(Body, M, Model), Models).
+
+error_free_model(Body, M, model(Body, Anot, Det)) :-
+	check_conjunction(Body, M, Anot, Det),
+	\+ ( sub_term(Error, Anot),
+	     subsumes_term(error(_,_), Error)
+	   ).
+
 
 %%	check_conjunction(+Body, +Module, -Annot, -Determinism) is nondet.
 %
@@ -98,7 +112,7 @@ check_body(Body, M, Annot, Det) :-
 
 check_conjunction((A,B), M, (CA,CB), Det) :- !,
 	check_conjunction(A, M, CA, DetA),
-	(   DetA == failure
+	(   never(DetA)
 	->  Det = DetA,
 	    CB = [not_reached]
 	;   check_conjunction(B, M, CB, DetB),
@@ -124,7 +138,7 @@ check_conjunction(once(Goal), M, C, Det) :- !,
 check_conjunction(call(Goal), M, C, Det) :- !,
 	check_conjunction(Goal, M, C, Det0),
 	detcut_det(Det0, Det).
-check_conjunction((If->Then;Else), M, (CIf->CThen;CElse), Det) :- !,
+check_conjunction((If->Then;_Else), M, (CIf->CThen;CElse), Det) :- !,
 	check_conjunction(If, M, CIf, CDet0),
 	prune_det(CDet0, CDet),
 	(   always(CDet)
@@ -132,6 +146,21 @@ check_conjunction((If->Then;Else), M, (CIf->CThen;CElse), Det) :- !,
 	    det_conj(CDet, ThenDet, Det),
 	    CElse = not_reached
 	;   never(CDet)
+	).					% TBD: Other cases
+check_conjunction((A;B), M, (CA;CB), Det) :- !,
+	error_free_models(A, M, AModels),
+	error_free_models(B, M, BModels),
+	member(model(A, CA, ADet), AModels),
+	member(model(B, CB, BDet), BModels),
+	det_disj(ADet, BDet, Det).
+check_conjunction((If->Then), M, (CIf->CThen), Det) :- !,
+	check_conjunction(If, M, CIf, CDet0),
+	prune_det(CDet0, CDet),
+	(   never(CDet)
+	->  Det = CDet,
+	    CThen = [not_reached]
+	;   check_conjunction(Then, M, CThen, DetThen),
+	    det_conj(CDet, DetThen, Det)
 	).
 check_conjunction(A, M, CA, Det) :-
 	goal_signature(M:A, CA, Det),
@@ -201,3 +230,49 @@ prune(X, X).
 
 detcut_det(D-_, Df) :- !, Df = D.
 detcut_det(D, D).
+
+%%	det_disj(D1, D2, D) is det.
+%
+%	Combine  disjunctive  determinism  indicators.    The  predicate
+%	det_disj_table/3   deals   with   the     determinism   problem,
+%	disregarding cuts.
+
+det_disj(D-cut, _, D-cut) :- !.		% not that this makes the 2nd unreachable
+det_disj(D1-C, DC2, D-C) :- !,
+	detcut_det(DC2, D2),
+	det_disj_table(D1, D2, D).
+det_disj(D1, D2-C2, D-C) :- !,
+	(   never(D1)
+	->  C = C2
+	;   C = may_cut
+	),
+	det_disj_table(D1, D2, D).
+det_disj(D1, D2, D) :-
+	det_disj_table(D1, D2, D).
+
+%%	det_disj_table(+DetA, +DetB, --Det)
+%
+%	Det is the combined determinism of two disjunctive branches.  To
+%	validate this table, use:
+%
+%	  ==
+%	  ?- forall((det(X),det(Y)),
+%		    (det_disj_table(X,Y,Z),
+%		     format('~w ~w ~w~n', [X,Y,Z]))).
+%	  ==
+
+det_disj_table(failure,	Det,	 Det).
+det_disj_table(Det,	failure, Det).
+det_disj_table(det,	_,	 multi).
+det_disj_table(_,	det,	 multi).
+det_disj_table(multi,	_,	 multi).
+det_disj_table(_,	multi,	 multi).
+det_disj_table(nondet,	nondet,	 nondet).
+det_disj_table(semidet,	_,	 nondet).
+det_disj_table(_,	semidet, nondet).
+
+det(failure).
+det(det).
+det(semidet).
+det(nondet).
+det(multi).
