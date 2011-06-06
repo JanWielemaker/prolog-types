@@ -118,8 +118,12 @@ check_conjunction(TypeTest, M, [semidet], Det) :- % type-test
 	;   type_constraint(not(M:Type), Var),
 	    Det = failure
 	).
+check_conjunction((If->Then;Else), M, (CIf->CThen;CElse), Det) :- !,
+	check_conjunction(If, M, CIf, CDetCut),
+	detcut_det(CDet, CDet).
 check_conjunction(A, M, CA, Det) :-
-	goal_signature(M:A, CA, Det).
+	goal_signature(M:A, CA, Det),
+	Det \== no_signature.			% TBD
 
 
 %%	det_conj(+D1, +D2, -D) is det.
@@ -168,3 +172,6 @@ det(nondet,  _,	      nondet).
 
 always(det).
 always(multi).
+
+detcut_det(D-_, Df) :- !, Df = D.
+detcut_det(D, D).

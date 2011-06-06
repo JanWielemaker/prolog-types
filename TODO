@@ -4,6 +4,25 @@
 
 ---+++ Control structures
 
+---++++ Disjunction (;)
+
+We have some state at the start and multiple paths to continue that must
+be rejoined at the end. Actually, in practice they are not rejoined, but
+if we cannot rejoin them the  possible   flow-control  paths  we need to
+analyse will explode.
+
+
+
+
+
+
+
+---++++ If-then-else (->;)
+
+---++++ Not (\+)
+
+Is the same as (Cond->fail;true)
+
 ---+++ Multiple clauses
 
 ---+++ Recursion

@@ -156,16 +156,23 @@ head_arg(_, Type, GoalArg, _AI) :-
 set_instantated(How, Var) :-
 	put_attr(Var, instantiated, How).
 
-%%	goal_signature(:Goal, -Annot, -Det) is nondet.
+%%	goal_signature(:Goal, -Annot, -Det) is multi.
 %
 %	Signature is a current  mode+type   signature  with  determinism
 %	information for Goal.  Goal may be partially instantiated.
+%
+%	@param	Det is one of the normal determinism indicator or the
+%		constant = no_signature if there is no signature for
+%		the goal.
 
-goal_signature(M:Goal, [Det|ArgAnnot], Det) :-
-	signature(M:Goal, ArgDecl, Det),
-	map_term_arguments(goal_arg, ArgDecl, Goal, AnnotTerm),
-	AnnotTerm =.. [_|Annot],
-	append(Annot, ArgAnnot).
+goal_signature(M:Goal, GoalAnot, Det) :-
+	(   signature(M:Goal, ArgDecl, Det)
+	*-> GoalAnot = [Det|ArgAnnot],
+	    map_term_arguments(goal_arg, ArgDecl, Goal, AnnotTerm),
+	    AnnotTerm =.. [_|Annot],
+	    append(Annot, ArgAnnot)
+	;   Det = no_signature
+	).
 
 goal_arg(AI, mode(I,Type), GoalArg, Annot) :-
 	(   type_constraint(Type, GoalArg)
