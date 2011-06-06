@@ -56,14 +56,16 @@ resolve_type(M0:Type0, M:Type) :-
 	;   Type = Type1
 	).
 
-resolve_primive_type_arg(M, Type0, Type) :-
-	functor(Type0, F, Arity),
+resolve_primive_type_arg(M, Type0, Q:Type) :-
+	strip_module(M:Type0, Q, Type1),
+	functor(Type1, F, Arity),
 	Arity > 0, !,
-	Type0 =.. [F|A1],
+	Type1 =.. [F|A1],
 	maplist(resolve_type(M), A1, A),
 	Type  =.. [F|A].
 resolve_primive_type_arg(M, Type0, Type) :-
-	qualify_outer_type(M:Type0, Type).
+	strip_module(M:Type0, Q, Type1),
+	qualify_outer_type(Q:Type1, Type).
 
 
 resolve_type(M0, Type0, Type) :-

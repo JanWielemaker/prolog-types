@@ -108,7 +108,8 @@ check_conjunction(TypeTest, M, [semidet], Det) :- % type-test
 	arg(A, TypeTest, Var),
 	(   type_constraint(M:Type, Var),
 	    Det = det
-	;   Det = failure
+	;   type_constraint(not(M:Type), Var),
+	    Det = failure
 	).
 check_conjunction(A, M, CA, Det) :-
 	goal_signature(M:A, CA, Det).
