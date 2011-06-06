@@ -1,19 +1,19 @@
 ---+ TODO List
 
----++ Types
+---++ Code-analysis
 
- * Intersect atomic values
-   - Mostly, member constraint has wrong order.
- * Intersect normal types
-   - common sub-terms
- * Parameterized types (e.g. list(atomic) /\ list(atom)		[OK]
+---+++ Control structures
 
----+++ Type from concrete values?
+---+++ Multiple clauses
 
- * Value/functor table to enclosing types.
- * type_constraint(:Type, +Value)?
+---+++ Recursion
 
----+++ Type aliases						[OK]
+---+++ Dealing with sub-goals that have no signature
+
+Two options:
+
+  1. Work from the leaves upwards
+  2. Unfold code as you encounter it
 
 ---++ Signatures
 
