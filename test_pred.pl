@@ -118,9 +118,21 @@ check_conjunction(TypeTest, M, [semidet], Det) :- % type-test
 	;   type_constraint(not(M:Type), Var),
 	    Det = failure
 	).
+check_conjunction(once(Goal), M, C, Det) :- !,
+	check_conjunction(Goal, M, C, Det0),
+	prune_det(Det0, Det).
+check_conjunction(call(Goal), M, C, Det) :- !,
+	check_conjunction(Goal, M, C, Det0),
+	detcut_det(Det0, Det).
 check_conjunction((If->Then;Else), M, (CIf->CThen;CElse), Det) :- !,
-	check_conjunction(If, M, CIf, CDetCut),
-	detcut_det(CDet, CDet).
+	check_conjunction(If, M, CIf, CDet0),
+	prune_det(CDet0, CDet),
+	(   always(CDet)
+	->  check_conjunction(Then, M, CThen, ThenDet),
+	    det_conj(CDet, ThenDet, Det),
+	    CElse = not_reached
+	;   never(CDet)
+	).
 check_conjunction(A, M, CA, Det) :-
 	goal_signature(M:A, CA, Det),
 	Det \== no_signature.			% TBD
@@ -172,6 +184,20 @@ det(nondet,  _,	      nondet).
 
 always(det).
 always(multi).
+
+never(failure).
+
+%%	prune_det(+DetIn, -DetOut)
+%
+%	Prune as in the if-then-else condition evaluation, once/1, etc.
+
+prune_det(DetCut, Pruned) :-
+	detcut_det(DetCut, Det),
+	prune(Det, Pruned).
+
+prune(multi, det).
+prune(nondet, semidet).
+prune(X, X).
 
 detcut_det(D-_, Df) :- !, Df = D.
 detcut_det(D, D).

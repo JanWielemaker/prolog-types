@@ -23,6 +23,11 @@ analyse will explode.
 
 Is the same as (Cond->fail;true)
 
+---++++ Special predicates
+
+  * format(Stream, Format, Arguments)
+
+
 ---+++ Multiple clauses
 
 ---+++ Recursion
@@ -37,4 +42,5 @@ Two options:
 ---++ Signatures
 
 ?- listing(current_signature). (layout)
+
 
