@@ -172,7 +172,7 @@ goal_arg(AI, mode(I,Type), GoalArg, Annot) :-
 	->  term_attvars(GoalArg, AttVars),
 	    (   member(AttVar, AttVars),
 		get_attr(AttVar, instantiated, invalid)
-	    ->  Annot = [error(invalid_handle(GoalArg), argument(AI))]
+	    ->  Annot = [error(invalid(GoalArg), argument(AI))]
 	    ;   (   instantiated_call(I, Type, GoalArg)
 		->  instantiated_exit(I, GoalArg),
 		    Annot = []

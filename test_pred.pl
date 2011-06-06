@@ -47,7 +47,7 @@ to_codes(In, Out) :-
 	atom(In),
 	atom_codes(In, Out).
 
-:- pred atomic_codes(+atomic, -codes) is det.
+% :- pred atomic_codes(+atomic, -codes) is det.
 
 atomic_codes(In, Out) :-
 	atom(In), !,
@@ -87,8 +87,14 @@ check_body(Body, M, Annot, Det) :-
 %	Each annotation is a list. Elements of the list include.
 %
 %	  * Determinism of the sub-goal (normal determinism indicators)
-%	  * Type error as argtype(ArgN, Var, Expected, Found)
+%	  * errors:
+%	    - error(type_error(Expected, Found), argument(I))
+%	    - error(mode_error(Mode, Found), argument(I))
+%	    - error(invalid(Found), argument(I))
 %	  * not_reached for code that cannot be reached
+%
+%	Determinism   qualifies   the   overall   determinism   of   the
+%	conjunction.
 
 check_conjunction((A,B), M, (CA,CB), Det) :- !,
 	check_conjunction(A, M, CA, DetA),
@@ -116,10 +122,49 @@ check_conjunction(A, M, CA, Det) :-
 	goal_signature(M:A, CA, Det).
 
 
-det_conj(_,	  cut,	   cut) :- !.
-det_conj(cut,	  Det,	   Det) :- !.
-det_conj(det,	  det,	   det) :- !.
-det_conj(det,	  semidet, semidet) :- !.
-det_conj(semidet, det,	   semidet) :- !.
-det_conj(_,	  nondet,  nondet) :- !.
-det_conj(nondet,  _,	   nondet) :- !.
+%%	det_conj(+D1, +D2, -D) is det.
+%
+%	Combine  the  determinism  information  from   two  goals  in  a
+%	conjunction. This also keeps information   about  pruning by the
+%	cut, by keeping track of cuts   and  by determining whether this
+%	cut is called always or sometimes.
+%
+%	@param	D1,D2,D are either a plain determinism or combined det
+%		and cut term (Det-Cut). Cut is one of =cut= or
+%		=may_cut=.
+
+det_conj(D1, D2, D) :-
+	det_table(D1, D2, Df), !,
+	D = Df.
+
+det_table(D1-Cut,  D2-_,    D-Cut) :- !,
+	det(D1, D2, D).
+det_table(D1-Cut,  D2,	    D-Cut) :- !,
+	det(D1, D2, D).
+det_table(cut,	    D,      D-cut) :- !.
+det_table(D1,       D2-Cut, D) :- !,
+	det(D1, D2, Df),
+	(   Df = _-_
+	->  D = Df
+	;   always(Df)
+	->  D = Df-Cut
+	;   D = Df-may_cut
+	).
+det_table(D1,      D2,      D) :-
+	det(D1, D2, D).
+
+det(X,	     X,	      X).
+det(det,     cut,     det-cut).
+det(multi,   cut,     det-cut).
+det(_,	     cut,     det-may_cut).
+det(cut,     Det,     Det-cut).
+
+det(det,     semidet, semidet).
+det(semidet, det,     semidet).
+det(det,     multi,   multi).
+det(multi,   det,     multi).
+det(_,	     nondet,  nondet).
+det(nondet,  _,	      nondet).
+
+always(det).
+always(multi).
