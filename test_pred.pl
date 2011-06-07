@@ -39,6 +39,10 @@ t2(In, Term-Term2) :-
 	close(Stream),
 	read(Stream, Term2).			% error
 
+t3(In, Out) :-
+	(   atom_codes(In, Out)
+	;   number_codes(In, Out)
+	).
 
 %:- pred to_codes(+atom, -codes) is det.
 %:- pred to_codes(+not(atom), -codes) is failure.
