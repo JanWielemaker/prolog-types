@@ -386,6 +386,9 @@ partial_type(Type) :-
 		 *	       HOOKS		*
 		 *******************************/
 
+:- debug(instantiated).
+:- debug(mode).
+
 %%	(type):attr_unify_hook(Type, Val) is semidet.
 %
 %	Unification hook for the type constraint.
@@ -393,8 +396,23 @@ partial_type(Type) :-
 %	@tbd	Should we combine the attributes somehow?  How?
 
 instantiated:attr_unify_hook(Instantiated, Val) :-
+	get_attr(Val, instantiated, I1), !,
+	(   I1 == Instantiated
+	->  true
+	;   debug(instantiated,
+		  'Instantiated hook must combine ~q and ~q?', [I1, Instantiated])
+	).
+instantiated:attr_unify_hook(Instantiated, Val) :-
 	attvar(Val),
 	put_attr(Val, instantiated, Instantiated).
+
+mode:attr_unify_hook(Mode, Val) :-
+	get_attr(Val, mode, M1), !,
+	(   M1 == Mode
+	->  true
+	;   debug(mode,
+		  'Mode hook must combine ~q and ~q?', [M1, Mode])
+	).
 mode:attr_unify_hook(Mode, Val) :-
 	attvar(Val),
 	put_attr(Val, mode, Mode).
