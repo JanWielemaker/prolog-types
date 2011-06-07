@@ -382,6 +382,22 @@ partial_type(Type) :-
 	      Any == anything
 	   ).
 
+		 /*******************************
+		 *	       HOOKS		*
+		 *******************************/
+
+%%	(type):attr_unify_hook(Type, Val) is semidet.
+%
+%	Unification hook for the type constraint.
+%
+%	@tbd	Should we combine the attributes somehow?  How?
+
+instantiated:attr_unify_hook(Instantiated, Val) :-
+	attvar(Val),
+	put_attr(Val, instantiated, Instantiated).
+mode:attr_unify_hook(Mode, Val) :-
+	attvar(Val),
+	put_attr(Val, mode, Mode).
 
 
 		 /*******************************
