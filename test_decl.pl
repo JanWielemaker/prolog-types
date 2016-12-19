@@ -1,14 +1,14 @@
 :- use_module(type_decl).
 
-system:stream(X)	:- is_stream(X).
-system:input_stream(X)	:- is_stream(X), stream_property(X, input).
-system:output_stream(X)	:- is_stream(X), stream_property(X, output).
-system:list(X)		:- is_list(X).
-system:char(X)		:- atom(X), atom_length(X,1).
-system:code(X)		:- integer(X), between(-1,0x10ffff,X).
-system:option(X)	:- (   X = (Name=_Value) -> atom(Name)
-			   ;   compound(X), functor(X, _, 1)
-			   ).
+system:stream(X)        :- is_stream(X).
+system:input_stream(X)  :- is_stream(X), stream_property(X, input).
+system:output_stream(X) :- is_stream(X), stream_property(X, output).
+system:list(X)          :- is_list(X).
+system:char(X)          :- atom(X), atom_length(X,1).
+system:code(X)          :- integer(X), between(-1,0x10ffff,X).
+system:option(X)        :- (   X = (Name=_Value) -> atom(Name)
+    ;   compound(X), functor(X, _, 1)
+    ).
 
 % disjoint primitives
 :- type system:atom.
@@ -47,9 +47,9 @@ system:option(X)	:- (   X = (Name=_Value) -> atom(Name)
 :- type system:module_name = atom.
 
 
-		 /*******************************
-		 *    SYSTEM PREDICATE OPTIONS	*
-		 *******************************/
+                 /*******************************
+                 *    SYSTEM PREDICATE OPTIONS  *
+                 *******************************/
 
 :- type system:write_option_attributes ---> ignore ; dots ; write ; portray.
 :- type system:write_option_blobs ---> write ; portray.
