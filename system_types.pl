@@ -58,26 +58,26 @@
 
 :- type system:boolean < [system:atom] --->
     (   true
-        ;   false
+    ;   false
     ).
 
 % Option lists of various predicates
 
 :- type system:write_option --->
     (   attributes((ignore;dots;write;portray))
-        ;   backquoted_string(system:boolean)
-        ;   blobs((write;portray))
-        ;   character_escapes(system:boolean)
-        ;   ignore_ops(system:boolean)
-        ;   max_depth(system:integer)
-        ;   module(system:module)
-        ;   numbervars(system:boolean)
-        ;   partial(system:boolean)
-        ;   portray(system:boolean)
-        ;   portray_goal(pred(any,list(system:write_option)))
-        ;   priority(system:integer)
-        ;   quoted(system:boolean)
-        ;   spacing((standard;next_argument))
+    ;   backquoted_string(system:boolean)
+    ;   blobs((write;portray))
+    ;   character_escapes(system:boolean)
+    ;   ignore_ops(system:boolean)
+    ;   max_depth(system:integer)
+    ;   module(system:module)
+    ;   numbervars(system:boolean)
+    ;   partial(system:boolean)
+    ;   portray(system:boolean)
+    ;   portray_goal(pred(any,list(system:write_option)))
+    ;   priority(system:integer)
+    ;   quoted(system:boolean)
+    ;   spacing((standard;next_argument))
     ).
 
 
