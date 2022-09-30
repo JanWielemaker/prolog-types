@@ -34,8 +34,8 @@
 
 :- module(prolog_system_types,
           []).
-:- use_module(pred_decl).
-:- use_module(type_decl).
+:- use_module(library(pred_decl)).
+:- use_module(library(type_decl)).
 
 % Basic system types. Note that this also   tells  the system that e.g.,
 % the predicate atomic/1 exists  and  succeeds   iff  the  argument is a
